@@ -1,0 +1,14 @@
+{
+  "name": "resume-automation",
+  "version": "1.0.0",
+  "description": "Level 1 resume automation system using fast-agent",
+  "main": "backend/main.py",
+  "scripts": {
+    "start": "uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev": "uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000",
+    "install-deps": "uv pip install -r requirements.txt"
+  },
+  "keywords": ["resume", "automation", "fastapi", "openai"],
+  "author": "Your Name",
+  "license": "MIT"
+}

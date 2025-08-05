@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Automation System</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        .results {
+            margin-top: 30px;
+        }
+        .result-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .result-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .result-content {
+            white-space: pre-wrap;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Resume Automation System</h1>
+        
+        <form id="resumeForm">
+            <div class="form-group">
+                <label for="jobUrl">Job Description URL:</label>
+                <input type="url" id="jobUrl" required placeholder="https://example.com/job-posting">
+            </div>
+            
+            <div class="form-group">
+                <label for="motivationNotes">Your Motivation Notes:</label>
+                <textarea id="motivationNotes" required placeholder="Why are you interested in this role? What specific experiences make you a good fit?"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="baseResume">Your Current Resume (Optional):</label>
+                <textarea id="baseResume" placeholder="Paste your existing resume here. If empty, will use the selected template below." rows="8"></textarea>
+                <small style="color: #666; font-size: 12px;">If you provide your resume here, it will be used instead of the template. Otherwise, the system will use the selected template as a starting point.</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="resumeTemplate">Resume Template (used if no resume provided above):</label>
+                <select id="resumeTemplate" required>
+                    <option value="">Select a template...</option>
+                    <option value="senior_engineering_manager">Senior Engineering Manager</option>
+                    <option value="engineering_manager">Engineering Manager</option>
+                    <option value="data_engineering_manager">Data Engineering Manager</option>
+                    <option value="senior_software_engineer">Senior Software Engineer</option>
+                </select>
+            </div>
+            
+            <button type="submit" id="generateBtn">Generate Resume Package</button>
+        </form>
+        
+        <div id="loading" class="loading" style="display: none;">
+            Processing your request... This may take a few minutes.
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="results" class="results" style="display: none;">
+            <div class="result-section">
+                <h3>📄 Resume</h3>
+                <div class="result-content" id="resumeContent"></div>
+            </div>
+            
+            <div class="result-section">
+                <h3>💌 Cover Letter</h3>
+                <div class="result-content" id="coverLetterContent"></div>
+            </div>
+            
+            <div class="result-section">
+                <h3>🎯 Interview Prep Notes</h3>
+                <div class="result-content" id="interviewPrepContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
