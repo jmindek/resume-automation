@@ -104,37 +104,68 @@
 </head>
 <body>
     <div class="container">
-        <h1>Resume Automation System</h1>
+        <h1>Resume Automation System - Level 2</h1>
+        
+        <!-- Google Drive Status -->
+        <div id="driveStatus" class="status-section" style="margin-bottom: 20px; padding: 15px; border-radius: 5px; background-color: #f8f9fa; border: 1px solid #dee2e6;">
+            <h3>🔗 Google Drive Status</h3>
+            <div id="driveStatusContent">Checking Google Drive configuration...</div>
+            <button type="button" id="testDriveBtn" style="margin-top: 10px; width: auto; padding: 8px 16px;">Test Connection</button>
+        </div>
         
         <form id="resumeForm">
             <div class="form-group">
                 <label for="jobUrl">Job Description URL:</label>
-                <input type="url" id="jobUrl" required placeholder="https://example.com/job-posting">
+                <input type="url" id="jobUrl" required placeholder="https://example.com/job-posting" tabindex="1">
             </div>
             
             <div class="form-group">
                 <label for="motivationNotes">Your Motivation Notes:</label>
-                <textarea id="motivationNotes" required placeholder="Why are you interested in this role? What specific experiences make you a good fit?"></textarea>
+                <textarea id="motivationNotes" required placeholder="Why are you interested in this role? What specific experiences make you a good fit?" tabindex="2">I am passionate about building scalable systems and leading engineering teams to deliver high-quality software solutions.</textarea>
+            </div>
+            
+            <!-- Level 2: Google Drive Integration -->
+            <div class="form-group">
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="checkbox" id="useDriveIntegration" checked style="width: auto; margin-right: 10px;">
+                    <label for="useDriveIntegration" style="margin-bottom: 0;">🚀 Google Drive Integration (Level 2) - Default Enabled</label>
+                </div>
+                <small style="color: #666; font-size: 12px;">Automatically creates organized Google Drive documents and PDFs. Uncheck to disable.</small>
+            </div>
+            
+            <div id="driveOptions" style="display: none; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 20px; background-color: #f9f9f9;">
+                <div class="form-group">
+                    <label for="companyName">Company Name:</label>
+                    <input type="text" id="companyName" placeholder="e.g., Google, Microsoft, Meta" tabindex="3">
+                    <small style="color: #666; font-size: 12px;">Auto-detected from job URL. Edit as needed.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="positionTitle">Position Title:</label>
+                    <input type="text" id="positionTitle" placeholder="e.g., Senior Software Engineer, Engineering Manager" tabindex="4">
+                    <small style="color: #666; font-size: 12px;">Auto-detected from job description. Edit as needed.</small>
+                </div>
+                
+                <div id="autoDetectionStatus" style="margin: 10px 0; padding: 8px; border-radius: 3px; font-size: 12px; display: none;"></div>
+                
+                <small style="color: #666; font-size: 12px;">
+                    📁 Files will be organized in: Job Applications/[Company] - [Position]/
+                </small>
             </div>
             
             <div class="form-group">
-                <label for="baseResume">Your Current Resume (Optional):</label>
-                <textarea id="baseResume" placeholder="Paste your existing resume here. If empty, will use the selected template below." rows="8"></textarea>
-                <small style="color: #666; font-size: 12px;">If you provide your resume here, it will be used instead of the template. Otherwise, the system will use the selected template as a starting point.</small>
-            </div>
-            
-            <div class="form-group">
-                <label for="resumeTemplate">Resume Template (used if no resume provided above):</label>
+                <label for="resumeTemplate">Baseline Resume (auto-selected):</label>
                 <select id="resumeTemplate" required>
-                    <option value="">Select a template...</option>
+                    <option value="">Will auto-select based on position...</option>
                     <option value="senior_engineering_manager">Senior Engineering Manager</option>
                     <option value="engineering_manager">Engineering Manager</option>
                     <option value="data_engineering_manager">Data Engineering Manager</option>
                     <option value="senior_software_engineer">Senior Software Engineer</option>
                 </select>
+                <small style="color: #666; font-size: 12px;">Your complete baseline resume that will be optimized for this specific job. Auto-selected based on job title.</small>
             </div>
             
-            <button type="submit" id="generateBtn">Generate Resume Package</button>
+            <button type="submit" id="generateBtn" tabindex="5">Generate Resume Package</button>
         </form>
         
         <div id="loading" class="loading" style="display: none;">
@@ -144,6 +175,14 @@
         <div id="error" class="error" style="display: none;"></div>
         
         <div id="results" class="results" style="display: none;">
+            <!-- Google Drive Results -->
+            <div id="driveResults" class="result-section" style="display: none;">
+                <h3>🔗 Google Drive Documents</h3>
+                <div id="driveLinksContent" style="background: #e8f5e8; padding: 15px; border-radius: 5px;">
+                    <!-- Drive links will be populated here -->
+                </div>
+            </div>
+            
             <div class="result-section">
                 <h3>📄 Resume</h3>
                 <div class="result-content" id="resumeContent"></div>

@@ -1,49 +1,60 @@
-# Resume Automation System
+# Resume Automation System - Level 2
 
-A Level 1 resume automation system that generates customized resumes, cover letters, and interview prep notes based on job descriptions.
+An advanced resume automation system that generates customized resumes, cover letters, and interview prep notes, with integrated Google Drive document management.
 
-## Features
+## Level 1 Features (Core)
 
 - **Job Description Analysis**: Scrapes and analyzes job postings from URLs
-- **Template Selection**: Choose from 4 professional resume templates:
-  - Senior Engineering Manager
-  - Engineering Manager  
-  - Data Engineering Manager
-  - Senior Software Engineer
+- **4-Prompt Chain Workflow**: Elite resume writing process using configurable prompts
+- **Template Selection**: Choose from 4 professional resume templates
 - **AI-Powered Generation**: Uses Anthropic Claude 3.5 Sonnet to generate tailored content
 - **Complete Package**: Outputs resume, cover letter, and interview prep notes
-- **Simple Interface**: Clean HTML/TypeScript frontend
 
-## Setup
+## Level 2 Features (Google Drive Integration) 🚀
 
-1. **Install Python dependencies**:
-   ```bash
-   uv pip install -r requirements.txt
-   ```
+- **Google Drive Authentication**: Secure service account integration
+- **Template Management**: Access resume templates directly from Google Drive
+- **Automated Document Creation**: Creates organized Google Docs and PDFs
+- **File Organization**: Structured folders: `Job Applications/[Company] - [Position]/`
+- **PDF Generation**: Automatic PDF exports for easy sharing
+- **Real-time Status**: Connection testing and configuration validation
+- **Configurable Prompts**: Easy customization through `config.yaml`
 
-2. **Set up environment variables**:
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your Anthropic API key
-   ```
+## Quick Start (Level 1)
 
-3. **Run the application**:
-   ```bash
-   npm run start
-   # or
-   uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-   ```
+1. **Install dependencies**: `uv pip install -r requirements.txt`
+2. **Set up environment**: `cp .env.example .env` and add your Anthropic API key
+3. **Run**: `npm run start`
+4. **Access**: http://localhost:8000/static/index.html
 
-4. **Access the application**:
-   Open http://localhost:8000/static/index.html in your browser
+## Level 2 Setup (Google Drive Integration)
+
+For full Google Drive integration, follow the detailed setup guide: **[SETUP_LEVEL_2.md](SETUP_LEVEL_2.md)**
+
+**Quick checklist:**
+- [ ] Google Cloud project with Drive & Docs APIs enabled
+- [ ] Service account created and `service_account.json` downloaded
+- [ ] Google Drive folders created and shared with service account
+- [ ] `config.yaml` updated with folder IDs
+- [ ] Templates uploaded to Google Drive
 
 ## Usage
 
-1. Enter the job description URL
-2. Add your motivation notes explaining why you're interested
-3. (Optional) Paste your existing resume, or select a template to use as base
-4. Click "Generate Resume Package"
-5. Review the generated resume, cover letter, and interview prep notes
+### Level 1 (Basic)
+1. Enter job description URL and motivation notes
+2. Paste existing resume OR select a template
+3. Click "Generate Resume Package" 
+4. Review text outputs
+
+### Level 2 (Google Drive)
+1. Enable "Google Drive Integration" checkbox
+2. Enter company name and position title
+3. System automatically:
+   - Creates organized folder structure
+   - Copies and customizes resume template
+   - Generates cover letter document
+   - Creates PDF versions
+   - Provides direct links to Google Docs
 
 ## Features
 

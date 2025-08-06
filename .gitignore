@@ -1,2 +1,5 @@
 .env
 backend/__pycache__/
+service_account.json
+resume-automation-system/.DS_Store
+resume-automation-system/ready-for-review/.DS_Store
