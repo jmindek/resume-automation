@@ -12,7 +12,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.http import BatchHttpRequest
 
-from .config_manager import get_config
+from backend.config_manager import get_config
 
 
 class DriveManager:

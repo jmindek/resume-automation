@@ -6,24 +6,94 @@ class ResumeAutomation {
         this.loading = document.getElementById('loading');
         this.error = document.getElementById('error');
         this.results = document.getElementById('results');
-        this.driveStatus = document.getElementById('driveStatus');
-        this.testDriveBtn = document.getElementById('testDriveBtn');
         this.useDriveIntegration = document.getElementById('useDriveIntegration');
         this.driveOptions = document.getElementById('driveOptions');
         this.driveResults = document.getElementById('driveResults');
         this.jobUrlInput = document.getElementById('jobUrl');
+        this.jobDescriptionInput = document.getElementById('jobDescription');
         this.companyNameInput = document.getElementById('companyName');
         this.positionTitleInput = document.getElementById('positionTitle');
         this.autoDetectionStatus = document.getElementById('autoDetectionStatus');
         this.resumeTemplateSelect = document.getElementById('resumeTemplate');
         
+        // Settings panel elements
+        this.settingsBtn = document.getElementById('settingsBtn');
+        this.settingsPanel = document.getElementById('settingsPanel');
+        this.settingsOverlay = document.getElementById('settingsOverlay');
+        this.settingsClose = document.getElementById('settingsClose');
+        this.claudeModelSelect = document.getElementById('claudeModel');
+        
+        // Prompt control elements
+        this.enablePrompt1 = document.getElementById('enablePrompt1');
+        this.enablePrompt2 = document.getElementById('enablePrompt2');
+        this.enablePrompt3 = document.getElementById('enablePrompt3');
+        this.enablePrompt4 = document.getElementById('enablePrompt4');
+        
+        // Resume tracking elements
+        this.enableResumeTracking = document.getElementById('enableResumeTracking');
+        this.preventDuplicateResumes = document.getElementById('preventDuplicateResumes');
+        
+        // Removed all status tracker elements
+        
         this.init();
     }
     
+    showToast(message, type = 'info', duration = 5000) {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        
+        // Add to page
+        document.body.appendChild(toast);
+        
+        // Show toast with animation
+        setTimeout(() => toast.classList.add('show'), 100);
+        
+        // Remove toast after duration
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => document.body.removeChild(toast), 300);
+        }, duration);
+    }
+    
+    // Removed status tracker initialization
+    
+    // Removed status tracker updates
+    
+    // Removed status tracker hiding
+    
+    // Removed progress simulation
+    
+    // Removed task completion marking
+    
+    // Removed error task marking
+    
+    // Removed complex progress session creation
+    
+    // Removed complex progress listener
+    
+    // Removed complex progress listener
+    
     init() {
         this.form.addEventListener('submit', this.handleSubmit.bind(this));
-        this.testDriveBtn.addEventListener('click', this.testDriveConnection.bind(this));
         this.useDriveIntegration.addEventListener('change', this.toggleDriveOptions.bind(this));
+        
+        // Settings panel event listeners
+        this.settingsBtn.addEventListener('click', this.openSettings.bind(this));
+        this.settingsClose.addEventListener('click', this.closeSettings.bind(this));
+        this.settingsOverlay.addEventListener('click', this.closeSettings.bind(this));
+        this.claudeModelSelect.addEventListener('change', this.saveSettings.bind(this));
+        
+        // Prompt control event listeners
+        this.enablePrompt1.addEventListener('change', this.saveSettings.bind(this));
+        this.enablePrompt2.addEventListener('change', this.saveSettings.bind(this));
+        this.enablePrompt3.addEventListener('change', this.saveSettings.bind(this));
+        this.enablePrompt4.addEventListener('change', this.saveSettings.bind(this));
+        
+        // Resume tracking event listeners
+        this.enableResumeTracking.addEventListener('change', this.saveSettings.bind(this));
+        this.preventDuplicateResumes.addEventListener('change', this.saveSettings.bind(this));
         
         // Auto-detect job info when URL changes
         this.jobUrlInput.addEventListener('blur', this.autoDetectJobInfo.bind(this));
@@ -33,9 +103,9 @@ class ResumeAutomation {
         this.positionTitleInput.addEventListener('blur', this.handlePositionTitleChange.bind(this));
         this.positionTitleInput.addEventListener('change', this.handlePositionTitleChange.bind(this));
         
-        // Load initial status and templates
-        this.loadDriveStatus();
+        // Load initial templates and settings
         this.loadTemplateOptions();
+        this.loadSettings();
         
         // Show drive options by default since it's checked
         this.toggleDriveOptions();
@@ -47,11 +117,24 @@ class ResumeAutomation {
         const formData = new FormData(this.form);
         const requestData = {
             job_url: document.getElementById('jobUrl').value,
+            job_description: document.getElementById('jobDescription').value || "",
+            additional_details: document.getElementById('additionalDetails').value || "",
             motivation_notes: document.getElementById('motivationNotes').value || "I am passionate about building scalable systems and leading engineering teams to deliver high-quality software solutions.",
             resume_template: document.getElementById('resumeTemplate').value,
             use_drive_integration: document.getElementById('useDriveIntegration').checked,
             company_name: document.getElementById('companyName').value,
-            position_title: document.getElementById('positionTitle').value
+            position_title: document.getElementById('positionTitle').value,
+            claude_model: document.getElementById('claudeModel').value,
+            // Prompt control settings
+            enabled_prompts: {
+                prompt_1: this.enablePrompt1.checked,
+                prompt_2: this.enablePrompt2.checked,
+                prompt_3: this.enablePrompt3.checked,
+                prompt_4: this.enablePrompt4.checked
+            },
+            // Resume tracking settings
+            enable_resume_tracking: this.enableResumeTracking.checked,
+            prevent_duplicate_resumes: this.preventDuplicateResumes.checked
         };
         
         // Validate inputs
@@ -62,6 +145,8 @@ class ResumeAutomation {
         this.showLoading(true);
         this.hideError();
         this.hideResults();
+        
+        // Removed all status tracking
         
         try {
             const response = await fetch('/api/generate-resume', {
@@ -78,6 +163,14 @@ class ResumeAutomation {
             }
             
             const result = await response.json();
+            
+            // Check if this was a duplicate detection
+            if (!result.success && result.drive_results?.duplicate_detected) {
+                this.showToast(result.message, 'warning', 7000);
+                return; // Don't display empty results
+            }
+            
+            // Display results
             this.displayResults(result);
             
         } catch (error) {
@@ -89,8 +182,9 @@ class ResumeAutomation {
     }
     
     validateInputs(data) {
-        if (!data.job_url || !data.motivation_notes) {
-            this.showError('Please fill in job URL and motivation notes.');
+        // Either job URL or job description is required
+        if ((!data.job_url && !data.job_description) || !data.motivation_notes) {
+            this.showError('Please provide either a job URL or paste the job description, plus motivation notes.');
             return false;
         }
         
@@ -107,12 +201,14 @@ class ResumeAutomation {
             return false;
         }
         
-        // Basic URL validation
-        try {
-            new URL(data.job_url);
-        } catch {
-            this.showError('Please enter a valid URL for the job description.');
-            return false;
+        // Basic URL validation (only if job URL is provided)
+        if (data.job_url && !data.job_description) {
+            try {
+                new URL(data.job_url);
+            } catch {
+                this.showError('Please enter a valid URL for the job description.');
+                return false;
+            }
         }
         
         return true;
@@ -160,12 +256,23 @@ class ResumeAutomation {
         const driveLinksContent = document.getElementById('driveLinksContent');
         let html = '<h4>📁 Files Created:</h4><ul style="margin: 10px 0; padding-left: 20px;">';
         
-        if (driveResults.resume_path) {
+        // Resume files
+        if (driveResults.resume_docx_path && driveResults.resume_txt_path) {
+            html += `<li><strong>Resume:</strong> ${driveResults.resume_docx_path} (.docx) + ${driveResults.resume_txt_path} (.txt)</li>`;
+        } else if (driveResults.resume_path) {
             html += `<li><strong>Resume:</strong> ${driveResults.resume_path}</li>`;
         }
         
-        if (driveResults.cover_letter_path) {
+        // Cover letter files
+        if (driveResults.cover_letter_docx_path && driveResults.cover_letter_txt_path) {
+            html += `<li><strong>Cover Letter:</strong> ${driveResults.cover_letter_docx_path} (.docx) + ${driveResults.cover_letter_txt_path} (.txt)</li>`;
+        } else if (driveResults.cover_letter_path) {
             html += `<li><strong>Cover Letter:</strong> ${driveResults.cover_letter_path}</li>`;
+        }
+        
+        // Interview prep notes file
+        if (driveResults.interview_prep_path) {
+            html += `<li><strong>Interview Prep Notes:</strong> ${driveResults.interview_prep_path} (.md)</li>`;
         }
         
         if (driveResults.folder_path) {
@@ -173,76 +280,78 @@ class ResumeAutomation {
         }
         
         html += '</ul>';
-        html += '<p style="font-size: 12px; color: #666; margin-top: 10px;">💡 Files will sync to Google Drive if you have Google Drive desktop app installed.</p>';
+        html += '<p style="font-size: 12px; color: #666; margin-top: 10px;">💡 Files sync to Google Drive automatically. Open .docx files in Microsoft Word or Google Docs.</p>';
         
         driveLinksContent.innerHTML = html;
     }
     
-    async loadDriveStatus() {
-        try {
-            const response = await fetch('/api/config/drive');
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const config = await response.json();
-            
-            if (config.service_account_configured && config.templates_folder_configured && config.output_folder_configured) {
-                this.showDriveStatus('✅ Google Drive configured and ready', 'success');
-            } else {
-                let issues = [];
-                if (!config.service_account_configured) issues.push('service account');
-                if (!config.templates_folder_configured) issues.push('templates folder');
-                if (!config.output_folder_configured) issues.push('output folder');
-                
-                this.showDriveStatus(`⚠️ Missing: ${issues.join(', ')}. See SETUP_LEVEL_2.md`, 'warning');
-            }
-            
-        } catch (error) {
-            console.error('Drive status error:', error);
-            this.showDriveStatus(`❌ Cannot connect to server. Is the backend running? (${error.message})`, 'error');
-        }
+    // Settings Panel Methods
+    openSettings() {
+        this.settingsPanel.classList.add('open');
+        this.settingsOverlay.classList.add('show');
+        document.body.style.overflow = 'hidden';
     }
     
-    async testDriveConnection() {
-        this.testDriveBtn.disabled = true;
-        this.testDriveBtn.textContent = 'Testing...';
-        this.showDriveStatus('🔄 Testing Google Drive connection...', 'warning');
-        
-        try {
-            const response = await fetch('/api/drive/test');
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const result = await response.json();
-            
-            if (result.connected) {
-                this.showDriveStatus('✅ Google Drive connection successful! Ready to use Level 2 features.', 'success');
-            } else {
-                this.showDriveStatus(`❌ Google Drive connection failed: ${result.message || 'Unknown error'}`, 'error');
-            }
-        } catch (error) {
-            console.error('Drive test error:', error);
-            this.showDriveStatus(`❌ Error testing connection: ${error.message}`, 'error');
-        } finally {
-            this.testDriveBtn.disabled = false;
-            this.testDriveBtn.textContent = 'Test Connection';
-        }
+    closeSettings() {
+        this.settingsPanel.classList.remove('open');
+        this.settingsOverlay.classList.remove('show');
+        document.body.style.overflow = '';
     }
     
-    showDriveStatus(message, type) {
-        const statusContent = document.getElementById('driveStatusContent');
-        const colors = {
-            success: '#d4edda',
-            warning: '#fff3cd',
-            error: '#f8d7da'
+    saveSettings() {
+        // Save settings to localStorage
+        const settings = {
+            claudeModel: this.claudeModelSelect.value,
+            useDriveIntegration: this.useDriveIntegration.checked,
+            enableResumeTracking: this.enableResumeTracking.checked,
+            preventDuplicateResumes: this.preventDuplicateResumes.checked,
+            enabledPrompts: {
+                prompt_1: this.enablePrompt1.checked,
+                prompt_2: this.enablePrompt2.checked,
+                prompt_3: this.enablePrompt3.checked,
+                prompt_4: this.enablePrompt4.checked
+            }
         };
-        
-        statusContent.textContent = message;
-        this.driveStatus.style.backgroundColor = colors[type] || colors.warning;
+        localStorage.setItem('resumeAutomationSettings', JSON.stringify(settings));
+        console.log('Settings saved:', settings);
     }
+    
+    loadSettings() {
+        // Load settings from localStorage
+        const savedSettings = localStorage.getItem('resumeAutomationSettings');
+        if (savedSettings) {
+            try {
+                const settings = JSON.parse(savedSettings);
+                if (settings.claudeModel) {
+                    this.claudeModelSelect.value = settings.claudeModel;
+                }
+                if (typeof settings.useDriveIntegration === 'boolean') {
+                    this.useDriveIntegration.checked = settings.useDriveIntegration;
+                    this.toggleDriveOptions();
+                }
+                if (typeof settings.enableResumeTracking === 'boolean') {
+                    this.enableResumeTracking.checked = settings.enableResumeTracking;
+                }
+                if (typeof settings.preventDuplicateResumes === 'boolean') {
+                    this.preventDuplicateResumes.checked = settings.preventDuplicateResumes;
+                }
+                // Load prompt settings
+                if (settings.enabledPrompts) {
+                    this.enablePrompt1.checked = settings.enabledPrompts.prompt_1 !== false; // Default to true
+                    this.enablePrompt2.checked = settings.enabledPrompts.prompt_2 === true;  // Default to false
+                    this.enablePrompt3.checked = settings.enabledPrompts.prompt_3 !== false; // Default to true
+                    this.enablePrompt4.checked = settings.enabledPrompts.prompt_4 === true;  // Default to false
+                }
+                console.log('Settings loaded:', settings);
+            } catch (e) {
+                console.error('Error loading settings:', e);
+            }
+        }
+        
+        // Save settings when useDriveIntegration changes
+        this.useDriveIntegration.addEventListener('change', this.saveSettings.bind(this));
+    }
+    
     
     toggleDriveOptions() {
         if (this.useDriveIntegration.checked) {
@@ -452,6 +561,8 @@ class ResumeAutomation {
             }
         }
     }
+    
+    // Remove unused methods
 }
 
 // Initialize the application when DOM is loaded
