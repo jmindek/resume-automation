@@ -51,15 +51,17 @@ class ConfigManager:
             'google_drive.service_account_file',
             'google_drive.templates_folder_id',
             'google_drive.output_folder_id',
-            'prompts.prompt_1',
-            'prompts.prompt_2',
-            'prompts.prompt_3',
-            'prompts.prompt_4'
+            'prompts_file'  # Updated to validate prompts file path instead of inline prompts
         ]
         
         for key in required_keys:
             if not self._get_nested_value(config, key):
                 raise ValueError(f"Missing required configuration: {key}")
+        
+        # Validate that prompts file exists and contains required prompts
+        prompts_file = self._get_nested_value(config, 'prompts_file')
+        if prompts_file:
+            self._validate_prompts_file(prompts_file)
     
     def _get_nested_value(self, config: Dict[str, Any], key: str) -> Any:
         """Get nested configuration value using dot notation"""
@@ -87,13 +89,58 @@ class ConfigManager:
         """Get Google Drive configuration"""
         return self.config.get('google_drive', {})
     
+    def _validate_prompts_file(self, prompts_file: str):
+        """Validate that prompts file exists and contains required prompts"""
+        prompts_path = Path(prompts_file)
+        if not prompts_path.is_absolute():
+            # If relative path, make it relative to config file directory
+            config_dir = Path(self.config_path).parent
+            prompts_path = config_dir / prompts_file
+        
+        if not prompts_path.exists():
+            raise FileNotFoundError(f"Prompts file not found: {prompts_path}")
+        
+        try:
+            with open(prompts_path, 'r', encoding='utf-8') as file:
+                prompts_config = yaml.safe_load(file)
+            
+            # Validate required prompts exist
+            required_prompts = ['prompt_1', 'prompt_2', 'prompt_3', 'prompt_4']
+            for prompt_name in required_prompts:
+                if prompt_name not in prompts_config:
+                    raise ValueError(f"Missing required prompt '{prompt_name}' in prompts file: {prompts_path}")
+        
+        except yaml.YAMLError as e:
+            raise ValueError(f"Invalid YAML in prompts file {prompts_path}: {e}")
+    
+    def _load_prompts_from_file(self) -> Dict[str, str]:
+        """Load prompts from external YAML file"""
+        prompts_file = self.config.get('prompts_file')
+        if not prompts_file:
+            return {}
+        
+        prompts_path = Path(prompts_file)
+        if not prompts_path.is_absolute():
+            # If relative path, make it relative to config file directory
+            config_dir = Path(self.config_path).parent
+            prompts_path = config_dir / prompts_file
+        
+        try:
+            with open(prompts_path, 'r', encoding='utf-8') as file:
+                prompts_config = yaml.safe_load(file)
+            return prompts_config or {}
+        except Exception as e:
+            print(f"Error loading prompts from {prompts_path}: {e}")
+            return {}
+    
     def get_prompts(self) -> Dict[str, str]:
-        """Get all prompts"""
-        return self.config.get('prompts', {})
+        """Get all prompts from external file"""
+        return self._load_prompts_from_file()
     
     def get_prompt(self, prompt_name: str) -> str:
-        """Get specific prompt by name"""
-        return self.config.get('prompts', {}).get(prompt_name, '')
+        """Get specific prompt by name from external file"""
+        prompts = self._load_prompts_from_file()
+        return prompts.get(prompt_name, '')
     
     def get_file_organization_config(self) -> Dict[str, Any]:
         """Get file organization settings"""

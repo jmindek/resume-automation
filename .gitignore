@@ -6,3 +6,6 @@ resume-automation-system/ready-for-review/.DS_Store
 server.log
 .DS_Store
 *.pyc
+
+# Custom prompts files - these contain personal prompts and should not be committed
+*_prompts.yaml

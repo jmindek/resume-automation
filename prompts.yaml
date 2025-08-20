@@ -1,0 +1,329 @@
+# Example Resume Generation Prompts
+# Copy this file to {your_name}_prompts.yaml and customize for your background
+
+prompt_1: |
+  Optimize the following resume for this specific job description. You MUST follow the EXACT formatting structure shown below.
+
+  CRITICAL FORMATTING REQUIREMENTS - Follow this structure EXACTLY:
+
+  HEADER SECTION:
+  [Name]
+  [Phone] | [Email] | [City, State]
+
+  Key Achievements
+  1. [Achievement with specific metrics from ONE company - never combine across companies]
+  2. [Achievement with specific metrics from ONE company - never combine across companies]  
+  3. [Achievement with specific metrics from ONE company - never combine across companies]
+  4. [Achievement with specific metrics from ONE company - never combine across companies]
+  5. [Achievement with specific metrics from ONE company - never combine across companies]
+
+  SKILLS
+  [SKILL CATEGORY 1]
+  • [skill] • [skill] • [skill] • [skill]
+
+  [SKILL CATEGORY 2]  
+  • [skill] • [skill] • [skill] • [skill]
+
+  EXPERIENCE
+  [Company Name] | [Location] | [Date Range]
+  [Job Title]
+  [Role description]
+  • [Achievement bullet with metrics]
+  • [Achievement bullet with metrics]
+  • [Achievement bullet with metrics]
+
+  [Company Name] | [Location] | [Date Range]  
+  [Job Title]
+  [Role description]
+  • [Achievement bullet with metrics]
+  • [Achievement bullet with metrics]
+
+  EDUCATION
+  [Degree] | [School] | [Location]
+
+  OPTIMIZATION REQUIREMENTS:
+  - Align all content with job requirements using Problem-Solution-Impact format
+  - Match their technology needs and terminology when your experience aligns
+  - Emphasize relevant metrics and achievements
+  - Don't add facts not in the original resume
+  - Don't bold any text
+  - CRITICAL: Each key achievement must be from ONE company only - never combine achievements from different companies into a single bullet point
+  - If an achievement involves multiple metrics, they must all be from the same role at the same company
+
+  Company context:
+  - [Add context about your previous companies here]
+  - [Example: Company A: Brief description of industry/focus]
+  - [Example: Company B: Brief description of industry/focus]
+
+  Job Description: {job_description}
+  Additional Context: {additional_details}
+  Original Resume: {resume_base}
+  
+  Return ONLY the resume following the EXACT structure above:
+
+# Template-based prompt for 2-document system  
+prompt_1_template: |
+  Optimize this person's resume content for this specific job. Since we're skipping refinement steps, make this the final optimized version.
+
+  Create a compelling, job-targeted resume using their actual experience and achievements.
+
+  CRITICAL REQUIREMENTS:
+  - Use ONLY the person's real information from their baseline resume
+  - Do NOT create fake names, contact info, or experiences  
+  - Optimize all content for this specific job description
+  - Use their actual company experiences
+  - Include specific metrics and achievements from their background
+  - Don't use the role name in the job descriptions
+  - CRITICAL: Each key achievement must be from ONE company only - never combine achievements from different companies into a single bullet point
+  - If an achievement involves multiple metrics, they must all be from the same role at the same company
+  - For the {{headline}} section: Extract ONLY the 2-3 sentence leadership philosophy/professional summary content from their baseline resume - DO NOT include any role titles or headers
+  
+  SKILLS SECTION REQUIREMENTS:
+  - Analyze the job description to determine the most relevant skill categories
+  - Choose 2-4 skill category names that best match what the employer is seeking
+  - Examples: "TECHNICAL SKILLS", "LEADERSHIP", "PRODUCT MANAGEMENT", etc.
+  - Each category should contain 4-6 specific skills separated by bullets (•)
+  - Don't add skills not supported by the original resume
+  - Don't bold any text or wrap skill category headings in asterisks
+  - Skill category headings should be plain text without any markdown formatting
+
+  FORMATTING REQUIREMENTS - Follow this EXACT structure:
+  [Full Name]
+  [Phone] | [Email] | [City, State]
+  [Optional: LinkedIn | Github | Portfolio links]
+
+  {{headline}}
+  [2-3 sentences from their baseline resume - NO titles or role names, just the professional summary content]
+
+  Key Achievements
+  1. [Achievement 1 with specific metrics from ONE company - never combine across companies]
+  2. [Achievement 2 with specific metrics from ONE company - never combine across companies]
+  3. [Achievement 3 with specific metrics from ONE company - never combine across companies]
+  4. [Achievement 4 with specific metrics from ONE company - never combine across companies]
+  5. [Achievement 5 with specific metrics from ONE company - never combine across companies]
+
+  Skills
+  [SKILL CATEGORY 1]
+  [relevant skills from their experience] • [relevant skills] • [etc]
+
+  [SKILL CATEGORY 2]
+  [relevant skills from their experience] • [relevant skills] • [etc]
+
+  [Add 1-3 additional skill categories if the job description suggests more specialized areas]
+
+  Professional Experience
+  [COMPANY 1], [Location] | [Date Range]
+  [2-3 sentence role description from baseline]
+  • [Their achievement 1 with metrics]
+  • [Their achievement 2 with metrics]
+  • [Their achievement 3 with metrics]
+
+  [COMPANY 2], [Location] | [Date Range]
+  [2-3 sentence role description from baseline]
+  • [Their achievement 1 with metrics]
+  • [Their achievement 2 with metrics]
+  • [Their achievement 3 with metrics]
+
+  [Continue for all relevant companies...]
+
+  Education
+  [Their actual education from baseline resume]
+
+  Job Description: {job_description}
+  Additional Context: {additional_details}
+  Baseline Resume: {resume_base}
+  
+  FIRST, provide your reasoning and analysis:
+  - What key themes and requirements did you identify in the job description?
+  - Which of their experiences best align with these requirements?
+  - What specific changes did you make and why?
+  - How did you prioritize which achievements to highlight?
+
+  THEN, return the complete optimized resume following the exact format above:
+
+prompt_2: |
+  Refine this resume to maximize recruiter appeal. You MUST maintain the EXACT formatting structure.
+
+  REQUIRED STRUCTURE - Follow this EXACTLY:
+
+  [Full Name]
+  [Phone] | [Email] | [City, State]
+  [Optional: LinkedIn | Github | Portfolio links]
+
+  [First Section Title - Leadership Philosophy or Professional Summary]
+  [2-3 refined sentences that enhance the original content]
+
+  Key Achievements
+  1. [Achievement with specific metrics from ONE company - never combine across companies]
+  2. [Achievement with specific metrics from ONE company - never combine across companies]  
+  3. [Achievement with specific metrics from ONE company - never combine across companies]
+  4. [Achievement with specific metrics from ONE company - never combine across companies]
+  5. [Achievement with specific metrics from ONE company - never combine across companies]
+
+  Skills
+  [SKILL CATEGORY 1]
+  [relevant skills] • [relevant skills] • [etc]
+
+  [SKILL CATEGORY 2]
+  [relevant skills] • [relevant skills] • [etc]
+
+  Professional Experience
+  [COMPANY 1], [Location] | [Date Range]
+  [Refined role description]
+  • [Achievement bullet with metrics]
+  • [Achievement bullet with metrics]
+  • [Achievement bullet with metrics]
+
+  [COMPANY 2], [Location] | [Date Range]
+  [Refined role description]
+  • [Achievement bullet with metrics]
+  • [Achievement bullet with metrics]
+  • [Achievement bullet with metrics]
+
+  [Additional companies as in original...]
+
+  Education
+  [Education from original resume]
+
+  REFINEMENT FOCUS:
+  - Remove low-impact content for brevity
+  - Add mission/values alignment language  
+  - Highlight unique strengths and approach
+  - Use industry-specific terminology
+  - Emphasize what makes them uniquely qualified
+  - Keep all structural formatting identical
+  - Don't bold any text or wrap skill category headings in asterisks
+  - Don't use the role name in the job description
+  - Skill category headings should be plain text without any markdown formatting
+  - CRITICAL: Each key achievement must remain from ONE company only - never combine achievements from different companies during refinement
+  - Preserve company-specific context - do not merge metrics or accomplishments across different roles
+  
+
+  Resume to refine: {resume_from_prompt_1}
+  Job Description: {job_description}
+  Additional Context: {additional_details}
+  
+  FIRST, explain your refinement decisions:
+  - What improvements did you make to enhance recruiter appeal?
+  - Which content did you strengthen or modify and why?
+  - How did you enhance the mission alignment language?
+  - What industry terminology did you incorporate?
+
+  THEN, return ONLY the refined resume following the EXACT structure above:
+
+prompt_3: |
+  Create cover letter content using template tags for docx template replacement.
+
+  You must return content with template tags that will be used to populate a docx template.
+
+  REQUIRED TEMPLATE TAG FORMAT - USE EXACTLY THIS FORMAT:
+  {{company}}
+  [Company name extracted from job description]
+
+  {{role}}
+  [Job title/position extracted from job description]
+
+  {{content}}
+  [Complete cover letter body from greeting to closing - this is the main content]
+
+  CRITICAL: You MUST use double curly braces around the tag names (same format as shown above), NOT single braces
+
+  CONTENT REQUIREMENTS for {{content}} section:
+  - Start with "Dear Hiring Manager," (or appropriate greeting)
+  - Write 2-3 compelling paragraphs tailored for this specific job
+  - Include 2-3 most relevant achievements with specific metrics from their experience
+  - Show mission alignment and cultural fit with concrete examples
+  - Demonstrate genuine interest and enthusiasm for the role
+  - End with "Sincerely,\n\n[Full Name]" (EXACTLY this format)
+  - Use authentic, professional tone without overstating expertise
+  - State availability status
+
+  CRITICAL REQUIREMENTS:
+  - Use the person's actual name consistently
+  - Use their actual experience and achievements only
+  - Return content in the exact template tag format shown above with DOUBLE curly braces
+  - Don't bold any text or use markdown formatting
+  - EXTRACT the actual company name and job title from the job description - do NOT use placeholder text like "[Company name not provided]"
+
+  Job Description: {job_description}
+  Motivation Notes: {motivation_notes}
+  Additional Details: {additional_details}
+  Optimized Resume: {resume_from_prompt_2}
+  
+  EXAMPLE OF CORRECT OUTPUT FORMAT:
+  {{company}}
+  Datavant
+  
+  {{role}}
+  Senior Software Engineering Manager
+  
+  {{content}}
+  Dear Hiring Manager,
+  [Cover letter content here]
+  Sincerely,
+  
+  [Full Name]
+  
+  FIRST, explain your cover letter strategy:
+  - How did you extract the company name and role from the job description?
+  - Which 2-3 achievements did you select and why are they most relevant?
+  - How did you demonstrate mission alignment and cultural fit?
+  - What specific language did you use to show enthusiasm and interest?
+
+  THEN, return the content with template tags in the exact format above:
+
+prompt_4: |
+  Based on this tailored resume and JD analysis, create interview prep notes using the structured format below.
+
+  FIRST, explain your interview strategy analysis:
+  - What are the top 3 pain points you identified from the job description?
+  - How do their experiences specifically address each pain point?
+  - What potential concerns or gaps did you identify and how should they be addressed?
+  - What makes them uniquely qualified compared to typical candidates?
+
+  THEN, provide the interview prep content in this EXACT structured format for Word template processing:
+
+  COMPANY:
+  [Extract the company name from job description]
+
+  JOB_TITLE:
+  [Extract the job title/position from job description]
+
+  CORE_NARRATIVE:
+  [Write a compelling 2-3 sentence positioning statement that differentiates them and directly addresses the company's needs]
+
+  PROOF_POINTS:
+  1. [Header: Brief title for first proof point]
+  [Content: Detailed story/achievement that addresses their biggest pain point with specific metrics]
+
+  2. [Header: Brief title for second proof point] 
+  [Content: Detailed story/achievement with metrics]
+
+  3. [Header: Brief title for third proof point]
+  [Content: Detailed story/achievement with metrics]
+
+  POTENTIAL_CONCERNS:
+  1. [Header: First potential concern they might have]
+  [Content: How to address this concern with examples]
+
+  2. [Header: Second potential concern]
+  [Content: How to address with evidence]
+
+  CULTURAL_ALIGNMENT:
+  1. [Header: Mission/values alignment point]
+  [Content: How they demonstrate this alignment with concrete examples]
+
+  2. [Header: Culture fit demonstration]
+  [Content: Specific evidence of cultural fit]
+
+  STRATEGIC_QUESTIONS:
+  1. [Thoughtful question about their technical challenges]
+  2. [Question about team/organizational priorities] 
+  3. [Question about growth/scaling challenges]
+  4. [Question about company direction/strategy]
+
+  CLOSING_POSITIONING:
+  [2-3 sentence summary of why they are uniquely qualified vs other candidates, tying together their specific experiences with the company's specific needs]
+
+  Job Description: {job_description}
+  Final Resume: {resume_from_prompt_2}
