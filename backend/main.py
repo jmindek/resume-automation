@@ -873,19 +873,24 @@ This is an excellent opportunity to make a significant impact at {company_name}.
         
             # Extract just the content part for processing while keeping full response in Claude Response files
             if i in [1, 2]:  # Resume prompts - extract content after reasoning
-                content_start = result.find("Jerry Mindek\n614-560-5114")
+                # Get user name from config for resume content detection
+                user_name = config.get('user.name', 'Your Name')
+                user_phone = config.get('user.phone', 'Your Phone Number')
+                
+                # Try to find content starting with user's name and phone
+                content_start = result.find(f"{user_name}\n{user_phone}")
                 if content_start != -1:
                     extracted_result = result[content_start:]
-                    print(f"DEBUG: Found 'Jerry Mindek' in Prompt {i} at position {content_start}")
+                    print(f"DEBUG: Found '{user_name}' in Prompt {i} at position {content_start}")
                 else:
-                    # Fallback: look for any content that starts with Jerry Mindek
-                    fallback_start = result.find("Jerry Mindek")
+                    # Fallback: look for any content that starts with user's name
+                    fallback_start = result.find(user_name)
                     if fallback_start != -1:
                         extracted_result = result[fallback_start:]
-                        print(f"DEBUG: Found 'Jerry Mindek' fallback in Prompt {i} at position {fallback_start}")
+                        print(f"DEBUG: Found '{user_name}' fallback in Prompt {i} at position {fallback_start}")
                     else:
                         extracted_result = result
-                        print(f"DEBUG: No 'Jerry Mindek' found in Prompt {i}, using full result")
+                        print(f"DEBUG: No '{user_name}' found in Prompt {i}, using full result")
                 prompt_results[i] = extracted_result
                 print(f"DEBUG: Stored Prompt {i} result: {repr(extracted_result[:100])}")
             elif i == 3:  # Cover letter prompt - extract cover letter content from template tags
@@ -906,14 +911,16 @@ This is an excellent opportunity to make a significant impact at {company_name}.
                     content_start = extracted_result.find(content_marker)
                     if content_start != -1:
                         content_start += len(content_marker)
-                        content_end = extracted_result.find("\n\nJerry Mindek")
+                        # Get user name for signature detection
+                        user_name = config.get('user.name', 'Your Name')
+                        content_end = extracted_result.find(f"\n\n{user_name}")
                         if content_end == -1:
-                            content_end = extracted_result.find("\nJerry Mindek")
+                            content_end = extracted_result.find(f"\n{user_name}")
                         if content_end == -1:
                             # Look for signature at end
                             content_end = len(extracted_result)
                         else:
-                            content_end += len("\n\nJerry Mindek")
+                            content_end += len(f"\n\n{user_name}")
                             
                         # Extract just the cover letter content for display
                         cover_letter_content = extracted_result[content_start:content_end].strip()

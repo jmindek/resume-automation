@@ -1,11 +1,42 @@
 .env
 backend/__pycache__/
-service_account.json
 resume-automation-system/.DS_Store
 resume-automation-system/ready-for-review/.DS_Store
 server.log
 .DS_Store
 *.pyc
 
-# Custom prompts files - these contain personal prompts and should not be committed
-*_prompts.yaml
+# Custom config files - these contain personal configurations and should not be committed
+config.yaml
+prompts.yaml
+service_account.json
+
+# Environment files
+.env.local
+.env.*.local
+
+# Additional Google Service Account patterns
+**/service_account*.json
+credentials.json
+
+# Log files
+*.log
+
+# Personal templates and outputs
+templates/
+output/
+resume-automation-system/
+
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific files
+Thumbs.db

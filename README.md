@@ -1,84 +1,172 @@
-# Resume Automation System - Level 2
+# Resume Automation System
 
-An advanced resume automation system that generates customized resumes, cover letters, and interview prep notes, with integrated Google Drive document management.
-
-## Level 1 Features (Core)
-
-- **Job Description Analysis**: Scrapes and analyzes job postings from URLs
-- **4-Prompt Chain Workflow**: Elite resume writing process using configurable prompts
-- **Template Selection**: Choose from 4 professional resume templates
-- **AI-Powered Generation**: Uses Anthropic Claude 3.5 Sonnet to generate tailored content
-- **Complete Package**: Outputs resume, cover letter, and interview prep notes
-
-## Level 2 Features (Google Drive Integration) 🚀
-
-- **Google Drive Authentication**: Secure service account integration
-- **Template Management**: Access resume templates directly from Google Drive
-- **Automated Document Creation**: Creates organized Google Docs and PDFs
-- **File Organization**: Structured folders: `Job Applications/[Company] - [Position]/`
-- **PDF Generation**: Automatic PDF exports for easy sharing
-- **Real-time Status**: Connection testing and configuration validation
-- **Configurable Prompts**: Easy customization through `config.yaml`
-
-## Quick Start (Level 1)
-
-1. **Install dependencies**: `uv pip install -r requirements.txt`
-2. **Set up environment**: `cp .env.example .env` and add your Anthropic API key
-3. **Run**: `npm run start`
-4. **Access**: http://localhost:8000/static/index.html
-
-## Level 2 Setup (Google Drive Integration)
-
-For full Google Drive integration, follow the detailed setup guide: **[SETUP_LEVEL_2.md](SETUP_LEVEL_2.md)**
-
-**Quick checklist:**
-- [ ] Google Cloud project with Drive & Docs APIs enabled
-- [ ] Service account created and `service_account.json` downloaded
-- [ ] Google Drive folders created and shared with service account
-- [ ] `config.yaml` updated with folder IDs
-- [ ] Templates uploaded to Google Drive
-
-## Usage
-
-### Level 1 (Basic)
-1. Enter job description URL and motivation notes
-2. Paste existing resume OR select a template
-3. Click "Generate Resume Package" 
-4. Review text outputs
-
-### Level 2 (Google Drive)
-1. Enable "Google Drive Integration" checkbox
-2. Enter company name and position title
-3. System automatically:
-   - Creates organized folder structure
-   - Copies and customizes resume template
-   - Generates cover letter document
-   - Creates PDF versions
-   - Provides direct links to Google Docs
+An AI-powered resume generation system that creates tailored resumes, cover letters, and interview prep notes based on job descriptions.
 
 ## Features
 
-### Elite Resume Writing Process
+- 🤖 AI-powered resume optimization using Claude AI
+- 📄 Automated cover letter generation
+- 🎯 Automated Interview preparation notes
+- 📁 Google Drive integration for file organization via API or Drive for Mac/Windows
+- 🔄 Template-based document generation
+- 📊 Application tracking with Excel integration
+- 🌐 Web interface for easy use
 
-The system implements a 4-step process using your custom prompts:
+## Prerequisites
 
-1. **Resume Alignment**: Analyzes job description and aligns your experience using Problem-Solution-Impact format
-2. **Optimization**: Takes the resume to 10/10 recruiter pick likelihood through strategic improvements
-3. **Cover Letter**: Generates a compelling 200-250 word cover letter with mission alignment
-4. **Interview Prep**: Provides strategic interview positioning with core narratives and proof points
+- Python 3.9+
+- Either 
+  - Google Drive for Mac/Windows
+  - Google Drive API enabled
+- Anthropic Claude API access
+- Existing Resume content
+
+## Setup Instructions
+
+### 1. Clone and Install
+
+```bash
+git clone <your-repo-url>
+cd resume-automation
+pip install -r requirements.txt
+```
+
+### 2. Environment Configuration
+
+Create a `.env` file in the project root:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add your Anthropic API key:
+```
+ANTHROPIC_API_KEY=your_api_key_here
+```
+
+### 3. Google Drive Setup
+
+1. Create a Google Cloud Project and enable the Drive API
+2. Create a Service Account and download the JSON credentials
+3. Save the credentials as `service_account.json` in the project root
+4. Share your Google Drive folders with the service account email
+
+### 4. Configuration
+
+1. Copy the configuration template:
+   ```bash
+   cp config_template.yaml config.yaml
+   ```
+
+2. Edit `config.yaml` and update:
+   - `google_drive.templates_folder_id`: Your Google Drive templates folder ID
+   - `google_drive.output_folder_id`: Your Google Drive output folder ID
+   - `file_organization.drive_for_mac_root`: Your Google Drive sync path
+   - `user` section: Your personal information
+
+### 5. Prompts Configuration
+
+1. Copy the prompts template:
+   ```bash
+   cp prompts_template.yaml prompts.yaml
+   ```
+
+2. Edit `prompts.yaml` and replace placeholders:
+   - `{name}`: Your full name
+   - `{phone}`: Your phone number
+   - `{email}`: Your email address
+   - `{city_state}`: Your city and state
+   - `{company_name1},{company_1_date_range}`: Company name 1 and date range
+   - `{company_name2},{company_2_date_range}`: Company name 2 and date range
+   - `{company_name3},{company_3_date_range}`: Company name 3 and date range
+   - `{company_name4},{company_4_date_range}`: Company name 4 and date range
+
+### 6. Google Drive Folder Structure
+
+Create this folder structure in your Google Drive:
+
+```
+resume-automation-system/
+├── templates/
+│   ├── resumes/
+│   │   ├── Engineering Manager.docx
+│   │   ├── Senior Software Engineer.docx
+│   │   └── Data Engineering Manager.docx
+│   ├── Engineering Manager Template.docx
+│   ├── Cover Letter Template.docx
+│   └── Interview Prep Notes Template.docx
+└── ready-for-review/
+    └── (generated resumes will appear here)
+```
+
+## Usage
+
+### Start the Server
+
+```bash
+python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+### Web Interface
+
+Open http://localhost:8000/static/index.html in your browser to access the web interface.
+
+## Configuration Options
 
 ### Resume Templates
 
-Modify the resume templates in the `get_base_resume_template()` function in `backend/main.py` to match your experience and formatting preferences.
+Available templates in `config.yaml`:
+- `engineering_manager`: Engineering Manager
+- `senior_engineering_manager`: Senior Engineering Manager  
+- `data_engineering_manager`: Data Engineering Manager
+- `senior_software_engineer`: Senior Software Engineer
+- `software_engineer`: Software Engineer
+- `lead_data_engineer`: Lead Data Engineer
+- `data_engineer`: Data Engineer
 
-## API Endpoints
+### Prompt Configuration
 
-- `POST /api/generate-resume`: Generate resume package
-- `GET /`: Health check
+The system uses 4 prompts:
+1. **Prompt 1**: Resume optimization
+2. **Prompt 2**: Resume refinement (optional)
+3. **Prompt 3**: Cover letter generation
+4. **Prompt 4**: Interview prep notes
 
-## Tech Stack
+## Security Notes
 
-- **Backend**: FastAPI, Python
-- **AI**: Anthropic Claude 3.5 Sonnet
-- **Frontend**: HTML, TypeScript, Vanilla JS
-- **Web Scraping**: BeautifulSoup, Requests
+- Never commit `.env` or `service_account.json` files
+- Never commit `config.yaml` or `prompts.yaml` files
+- Use environment variables for sensitive configuration
+- Regularly rotate API keys and service account credentials
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"No resume content loaded"**: Check that baseline resume files exist in `templates/resumes/`
+2. **Google Drive authentication errors**: Verify service account permissions
+3. **API rate limits**: Adjust `system.rate_limit_delay` in config.yaml
+4. **Template parsing errors**: Ensure template files have correct format
+
+### Debugging
+
+Enable debug mode by setting environment variable:
+```bash
+export DEBUG=true
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+TBD
+
+## Support
+
+For issues and questions, please open a GitHub issue.
