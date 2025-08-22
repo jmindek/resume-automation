@@ -223,9 +223,9 @@ def create_drive_sync_files(company_name: str, position_title: str,
         
         templates_folder = Path(drive_root) / "resume-automation-system" / "templates"
         potential_baseline_files = [
-            templates_folder / f"{baseline_resume_name}.docx",
-            templates_folder / f"{baseline_resume_name}.txt",
-            templates_folder / baseline_resume_name
+            templates_folder / "resumes" /  f"{baseline_resume_name}.docx",
+            templates_folder / "resumes" / f"{baseline_resume_name}.txt",
+            templates_folder / "resumes" / baseline_resume_name
         ]
         
         baseline_file = None

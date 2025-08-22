@@ -988,7 +988,7 @@ def find_template_and_baseline_files(templates_folder: Path, baseline_resume_nam
                 template_file = potential_file
                 break
         
-        # Look for baseline content file (prefer .docx, then .gdoc, then .txt)
+        # Look for baseline content file in resumes subfolder (prefer .docx, then .gdoc, then .txt)
         baseline_patterns = [
             f"{baseline_resume_name}.docx",
             f"{baseline_resume_name}.gdoc", 
@@ -997,7 +997,14 @@ def find_template_and_baseline_files(templates_folder: Path, baseline_resume_nam
         ]
         
         baseline_file = None
+        resumes_folder = templates_folder / "resumes"
         for pattern in baseline_patterns:
+            # First try in resumes subfolder
+            potential_file = resumes_folder / pattern
+            if potential_file.exists():
+                baseline_file = potential_file
+                break
+            # Fallback to templates folder root for backward compatibility
             potential_file = templates_folder / pattern
             if potential_file.exists():
                 baseline_file = potential_file
