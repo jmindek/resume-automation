@@ -461,25 +461,43 @@ def parse_claude_response_for_tags(claude_response: str, baseline_content: str) 
 def extract_template_tags(claude_response: str) -> Dict[str, str]:
     """
     Extract template tags from Claude's response in the format:
-    {{tag_name}}
+    {{tag_name}} or {tag_name}
     [tag content]
     """
     try:
         import re
         tag_values = {}
         
-        # Pattern to match {{tag_name}} followed by content until next tag or end
-        pattern = r'\{\{(\w+)\}\}\s*\n(.*?)(?=\{\{\w+\}\}|\Z)'
-        matches = re.findall(pattern, claude_response, re.DOTALL)
+        # Try double braces first (preferred format)
+        double_brace_pattern = r'\{\{(\w+)\}\}\s*\n(.*?)(?=\{\{\w+\}\}|\Z)'
+        matches = re.findall(double_brace_pattern, claude_response, re.DOTALL)
         
-        for tag_name, tag_content in matches:
-            # Clean up the content (remove brackets if present, strip whitespace)
-            cleaned_content = tag_content.strip()
-            # Remove square brackets if they wrap the entire content
-            if cleaned_content.startswith('[') and cleaned_content.endswith(']'):
-                cleaned_content = cleaned_content[1:-1].strip()
-            tag_values[tag_name] = cleaned_content
+        if matches:
+            print(f"DEBUG: Found {len(matches)} double-brace template tags")
+            for tag_name, tag_content in matches:
+                # Clean up the content (remove brackets if present, strip whitespace)
+                cleaned_content = tag_content.strip()
+                # Remove square brackets if they wrap the entire content
+                if cleaned_content.startswith('[') and cleaned_content.endswith(']'):
+                    cleaned_content = cleaned_content[1:-1].strip()
+                tag_values[tag_name] = cleaned_content
+        else:
+            # Fallback to single braces if no double braces found
+            single_brace_pattern = r'\{(\w+)\}\s*\n(.*?)(?=\{\w+\}|\Z)'
+            matches = re.findall(single_brace_pattern, claude_response, re.DOTALL)
             
+            if matches:
+                print(f"DEBUG: Found {len(matches)} single-brace template tags (fallback)")
+                for tag_name, tag_content in matches:
+                    # Clean up the content (remove brackets if present, strip whitespace)
+                    cleaned_content = tag_content.strip()
+                    # Remove square brackets if they wrap the entire content
+                    if cleaned_content.startswith('[') and cleaned_content.endswith(']'):
+                        cleaned_content = cleaned_content[1:-1].strip()
+                    tag_values[tag_name] = cleaned_content
+            else:
+                print("DEBUG: No template tags found in Claude response")
+        
         return tag_values
         
     except Exception as e:

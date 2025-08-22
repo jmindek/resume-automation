@@ -64,6 +64,14 @@ class JobParser:
         'bamboohr.com': {
             'company_pattern': r'//([^.]+)\.bamboohr\.com',
             'position_pattern': r'<h1[^>]*>([^<]+)</h1>',
+        },
+        'ashbyhq.com': {
+            'company_pattern': r'/([^/]+)/[^/]+/application',
+            'position_pattern': r'<title[^>]*>([^<]+)</title>',
+        },
+        'ats.rippling.com': {
+            'company_pattern': r'/([^/-]+)-careers-page',  # Extract company from URL path
+            'position_pattern': r'<title[^>]*>([^<]+)</title>',
         }
     }
     
@@ -137,14 +145,19 @@ class JobParser:
                 if job_board in domain:
                     company_match = re.search(patterns['company_pattern'], url, re.IGNORECASE)
                     if company_match:
-                        company = company_match.group(1).replace('-', ' ').title()
-                        return company, None
+                        from urllib.parse import unquote
+                        company = unquote(company_match.group(1))  # URL decode
+                        company = company.replace('-', ' ').replace('_', ' ').strip()
+                        # Don't title case for known company names that have specific casing
+                        if company.lower() in ['jasper', 'jasper ai']:
+                            return 'Jasper', None
+                        return company.title(), None
             
             # Try to extract company from subdomain
             subdomain_match = re.match(r'([^.]+)\.', domain)
             if subdomain_match:
                 subdomain = subdomain_match.group(1)
-                if subdomain not in ['www', 'jobs', 'careers', 'hire', 'apply']:
+                if subdomain not in ['www', 'jobs', 'careers', 'hire', 'apply', 'ats']:
                     return subdomain.replace('-', ' ').title(), None
             
             # If subdomain extraction failed, try extracting from root domain
@@ -417,6 +430,7 @@ class JobParser:
         # Data Engineering Manager patterns
         elif any(pattern in position_lower for pattern in [
             'data engineering manager', 'data eng manager', 'manager data engineering',
+            'manager, data engineer', 'manager, data engineering',  # Comma-separated formats
             'head of data engineering', 'director data engineering', 'data platform manager',
             'analytics engineering manager', 'data infrastructure manager'
         ]):
@@ -875,6 +889,7 @@ class JobParser:
         
         # Auto-select resume template based on position
         suggested_template = cls.select_resume_template(position) if position else None
+        template_source = 'auto-detected' if suggested_template else 'none'
         
         confidence = 'high' if (company and position) else 'medium' if (company or position) else 'low'
         if cls._is_spa_page(job_description):
@@ -886,5 +901,6 @@ class JobParser:
             'position_title': position,
             'salary': salary,
             'suggested_template': suggested_template,
+            'template_source': template_source,
             'confidence': confidence
         }

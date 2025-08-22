@@ -189,7 +189,7 @@ Note: This is a synthetic job description created from available URL data. Pleas
 def create_drive_sync_files(company_name: str, position_title: str, 
             resume_template: str, resume_content: str, cover_letter_content: str, 
             interview_prep_content: str = "", use_template_system: bool = False,
-            template_file: Optional[Path] = None) -> dict:
+            template_file: Optional[Path] = None, prompt_full_results: Optional[dict] = None) -> dict:
     """Create files in Google Drive sync folder by copying baseline resume and creating cover letter"""
     try:
         file_config = config.get('file_organization', {})
@@ -328,8 +328,15 @@ def create_drive_sync_files(company_name: str, position_title: str,
                 print(f"DEBUG: Cover letter content length: {len(cover_letter_content)}")
                 print(f"DEBUG: Cover letter content preview: {cover_letter_content[:300]}...")
                 
-                # Parse Claude's JSON response for cover letter tags
-                cover_letter_tags = parse_claude_response_for_tags(cover_letter_content, "")
+                # Parse Claude's full response (with template tags) for cover letter tags
+                cover_letter_full_response = cover_letter_content
+                if prompt_full_results and 3 in prompt_full_results:
+                    cover_letter_full_response = prompt_full_results[3]
+                    print(f"DEBUG: Using full Claude response for cover letter template parsing")
+                else:
+                    print(f"DEBUG: Using extracted content for cover letter template parsing (may not work)")
+                
+                cover_letter_tags = parse_claude_response_for_tags(cover_letter_full_response, "")
                 print(f"DEBUG: Cover letter extracted {len(cover_letter_tags)} tag values: {list(cover_letter_tags.keys())}")
                 
                 if cover_letter_tags:
@@ -768,6 +775,8 @@ This is an excellent opportunity to make a significant impact at {company_name}.
     
     # Process prompts in sequence - simplified approach
     prompt_results = {}  # Store results by prompt number
+    prompt_full_results = {}  # Store full Claude responses for template processing
+    claude_responses_folder = None  # Track where Claude responses were saved
     enabled_prompts_dict = {
         1: request.enabled_prompts.prompt_1,
         2: request.enabled_prompts.prompt_2,
@@ -815,23 +824,40 @@ This is an excellent opportunity to make a significant impact at {company_name}.
             print(f"{timestamp} - Sending prompt {i} to Anthropic (length: {len(prompt)} characters)")
         
             # Create output folder for this specific job application to store Claude responses
-            company_name = job_info.get('company_name') or request.company_name
-            position_title = job_info.get('position_title') or request.position_title
+            # Prioritize request parameters to ensure consistency with drive sync files
+            company_name = request.company_name or job_info.get('company_name', 'Unknown Company')
+            position_title = request.position_title or job_info.get('position_title', 'Unknown Position')
             output_folder = None
         
+            # Always try to create an output folder for Claude responses
             try:
-                # Create temporary folder path for Claude responses
                 file_config = config.get_file_organization_config()
                 drive_root = file_config.get('drive_for_mac_root', '')
-                folder_structure = file_config.get('folder_structure', 'resume-automation-system/ready-for-review/{company_name} - {position_title}/')
-                relative_folder = folder_structure.format(
-                    company_name=company_name.replace('/', '-').replace('\\', '-'),  # Clean folder name
-                    position_title=position_title.replace('/', '-').replace('\\', '-')
-                )
-                output_folder = Path(drive_root) / relative_folder
+                
+                if drive_root and Path(drive_root).exists():
+                    # Use configured Google Drive sync path if available
+                    folder_structure = file_config.get('folder_structure', 'resume-automation-system/ready-for-review/{company_name} - {position_title}/')
+                    relative_folder = folder_structure.format(
+                        company_name=company_name.replace('/', '-').replace('\\', '-'),  # Clean folder name
+                        position_title=position_title.replace('/', '-').replace('\\', '-')
+                    )
+                    output_folder = Path(drive_root) / relative_folder
+                else:
+                    # Fallback to temporary folder in project directory for Claude responses
+                    import tempfile
+                    temp_dir = Path(tempfile.gettempdir()) / "resume-automation-claude-responses"
+                    safe_company = company_name.replace('/', '-').replace('\\', '-') if company_name else "Unknown"
+                    safe_position = position_title.replace('/', '-').replace('\\', '-') if position_title else "Unknown"
+                    output_folder = temp_dir / f"{safe_company} - {safe_position}"
+                    print(f"Using temporary folder for Claude responses: {output_folder}")
+                
                 output_folder.mkdir(parents=True, exist_ok=True)
+                claude_responses_folder = output_folder  # Track the folder for response data
+                print(f"Created Claude response folder: {output_folder}")
+                
             except Exception as folder_error:
                 print(f"Warning: Could not create output folder for Claude responses: {folder_error}")
+                # Continue without saving Claude responses if folder creation fails
         
             # Define prompt names for clarity
             prompt_names = ["Prompt 1 - Resume Optimization", "Prompt 2 - Resume Refinement", "Prompt 3 - Cover Letter", "Prompt 4 - Interview Prep"]
@@ -841,6 +867,9 @@ This is an excellent opportunity to make a significant impact at {company_name}.
         
             print(f"DEBUG: Prompt {i} result length: {len(result)}")
             print(f"DEBUG: Prompt {i} result preview: {repr(result[:200])}")
+        
+            # Store full result for template processing
+            prompt_full_results[i] = result
         
             # Extract just the content part for processing while keeping full response in Claude Response files
             if i in [1, 2]:  # Resume prompts - extract content after reasoning
@@ -934,6 +963,11 @@ This is an excellent opportunity to make a significant impact at {company_name}.
         "message": "Resume package generated successfully"
     }
     
+    # Add Claude responses folder info if available
+    if claude_responses_folder:
+        response_data["claude_responses_folder"] = str(claude_responses_folder)
+        response_data["message"] += f" | Claude responses saved to: {claude_responses_folder.name}"
+    
     # Level 2: Google Drive Integration - Create files in Drive sync folder
     if request.use_drive_integration and request.company_name and request.position_title:
         try:
@@ -946,7 +980,8 @@ This is an excellent opportunity to make a significant impact at {company_name}.
                 cover_letter_content=cover_letter,
                 interview_prep_content=interview_prep,
                 use_template_system=use_template_system,
-                template_file=template_file if use_template_system else None
+                template_file=template_file if use_template_system else None,
+                prompt_full_results=prompt_full_results
             )
             
             if sync_results:
@@ -1030,13 +1065,25 @@ async def get_drive_config():
         drive_config = config.get_drive_config()
         file_org_config = config.get('file_organization', {})
         
+        # Create user-friendly display names for UI
+        template_display_names = {
+            'senior_engineering_manager': 'Senior Engineering Manager',
+            'engineering_manager': 'Engineering Manager', 
+            'director': 'Director of Engineering',
+            'data_engineering_manager': 'Data Engineering Manager',
+            'senior_software_engineer': 'Senior Software Engineer',
+            'software_engineer': 'Software Engineer',
+            'lead_data_engineer': 'Lead Data Engineer',
+            'data_engineer': 'Data Engineer'
+        }
+        
         # Remove sensitive information
         safe_config = {
             "templates_folder_configured": bool(drive_config.get('templates_folder_id')),
             "output_folder_configured": bool(drive_config.get('output_folder_id')),
             "service_account_configured": bool(drive_config.get('service_account_file')),
             "baseline_resumes": drive_config.get('baseline_resumes', {}),
-            "templates": drive_config.get('baseline_resumes', {}),  # Legacy key for frontend compatibility 
+            "templates": template_display_names,  # Use display names for UI
             "folder_structure": file_org_config.get('folder_structure', '')
         }
         return safe_config
