@@ -105,7 +105,7 @@ class ConfigManager:
                 prompts_config = yaml.safe_load(file)
             
             # Validate required prompts exist
-            required_prompts = ['prompt_1', 'prompt_2', 'prompt_3', 'prompt_4']
+            required_prompts = ['prompt_1', 'prompt_2', 'prompt_3']
             for prompt_name in required_prompts:
                 if prompt_name not in prompts_config:
                     raise ValueError(f"Missing required prompt '{prompt_name}' in prompts file: {prompts_path}")

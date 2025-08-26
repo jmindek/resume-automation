@@ -17,7 +17,7 @@ from fastapi.responses import StreamingResponse
 from backend.config_manager import get_config
 from backend.drive_manager import DriveManager
 from backend.job_parser import JobParser
-from backend.docx_utils import read_docx_content, write_docx_content, copy_docx_with_new_content, smart_content_replacement, smart_template_replacement, multi_tag_template_replacement, tag_based_template_replacement, find_template_and_baseline_files, read_content_file, parse_claude_response_for_tags, parse_interview_prep_response
+from backend.docx_utils import read_docx_content, write_docx_content, tag_based_template_replacement, find_template_and_baseline_files, read_content_file, parse_claude_response_for_tags, parse_interview_prep_response
 from backend.excel_tracker import create_resume_tracker
 import os
 from pathlib import Path
@@ -44,10 +44,9 @@ client = anthropic.Anthropic(api_key=config.get('anthropic.api_key'))
 drive_manager = None  # Initialize on first use to handle missing credentials gracefully
 
 class EnabledPrompts(BaseModel):
-    prompt_1: bool = True
-    prompt_2: bool = False
-    prompt_3: bool = True
-    prompt_4: bool = False
+    prompt_1: bool = True  # Resume generation (template-based)
+    prompt_2: bool = True  # Cover letter generation
+    prompt_3: bool = True  # Interview prep generation
 
 class ResumeRequest(BaseModel):
     job_url: str = ""  # Now optional - can be empty if job_description is provided
@@ -116,80 +115,27 @@ def scrape_job_content(url: str) -> Tuple[str, str]:
         print(f"DEBUG: cleaned_text length: {len(cleaned_text.strip())}")
         print(f"DEBUG: is_spa_page: {JobParser._is_spa_page(raw_html)}")
         
-        if len(cleaned_text.strip()) < 100 and JobParser._is_spa_page(raw_html):
-            print("🔄 SPA page detected, creating synthetic job description from URL...")
-            try:
-                synthetic_description = create_synthetic_job_description(url, raw_html)
-                print(f"DEBUG: synthetic_description created: {len(synthetic_description) if synthetic_description else 0} chars")
-                if synthetic_description:
-                    print(f"✅ Created synthetic job description ({len(synthetic_description)} chars)")
-                    return raw_html, synthetic_description
-                else:
-                    print("❌ Could not create synthetic job description")
-            except Exception as e:
-                print(f"❌ Error creating synthetic job description: {e}")
-        else:
-            print(f"DEBUG: Using regular cleaned text ({len(cleaned_text)} chars)")
+        # Check if scraping failed (very short content or SPA page)
+        if len(cleaned_text.strip()) < 100:
+            if JobParser._is_spa_page(raw_html):
+                error_msg = f"❌ Job scraping failed: This appears to be a Single Page Application that loads content with JavaScript. Only got {len(cleaned_text.strip())} characters of content."
+            else:
+                error_msg = f"❌ Job scraping failed: Only extracted {len(cleaned_text.strip())} characters. This website may have anti-scraping protection or require JavaScript."
+            
+            print(error_msg)
+            raise HTTPException(status_code=400, detail=error_msg)
         
+        print(f"✅ Successfully scraped job content ({len(cleaned_text)} chars)")
         return raw_html, cleaned_text[:5000]  # Return both versions
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to scrape job content: {str(e)}")
 
-def create_synthetic_job_description(url: str, raw_html: str) -> str:
-    """Create a synthetic job description for SPA pages based on URL and available data"""
-    try:
-        # Parse job information from the URL and HTML
-        job_info = JobParser.parse_job_posting(raw_html, url)
-        
-        company = job_info.get('company_name', 'the company')
-        position = job_info.get('position_title', 'this position')
-        salary = job_info.get('salary', 'competitive salary')
-        
-        # Create a synthetic job description template
-        synthetic_description = f"""
-Job Title: {position}
-Company: {company}
-Location: Remote/Hybrid available
-Salary: {salary}
-
-We are seeking a {position} to join our team at {company}. This is an exciting opportunity to work with a growing technology company.
-
-Key Responsibilities:
-- Lead and manage engineering teams
-- Drive technical strategy and architecture decisions  
-- Collaborate with cross-functional teams
-- Mentor and develop team members
-- Ensure delivery of high-quality software solutions
-
-Requirements:
-- Proven experience in engineering management
-- Strong technical background in software development
-- Experience with modern technology stacks
-- Leadership and team building skills
-- Excellent communication abilities
-
-What We Offer:
-- {salary}
-- Flexible work arrangements
-- Professional development opportunities
-- Collaborative work environment
-- Growth opportunities
-
-URL: {url}
-
-Note: This is a synthetic job description created from available URL data. Please refer to the original job posting for complete details.
-        """
-        
-        return synthetic_description.strip()
-        
-    except Exception as e:
-        print(f"Error creating synthetic job description: {e}")
-        return ""
 
 def create_drive_sync_files(company_name: str, position_title: str, 
             resume_template: str, resume_content: str, cover_letter_content: str, 
-            interview_prep_content: str = "", use_template_system: bool = False,
-            template_file: Optional[Path] = None, prompt_full_results: Optional[dict] = None) -> dict:
+            interview_prep_content: str = "",
+            template_file: Optional[Path] = None, prompt_full_results: Optional[dict] = None,
+            baseline_content: str = "") -> dict:
     """Create files in Google Drive sync folder by copying baseline resume and creating cover letter"""
     try:
         file_config = config.get('file_organization', {})
@@ -234,7 +180,7 @@ def create_drive_sync_files(company_name: str, position_title: str,
                 baseline_file = potential_file
                 break
         
-        if baseline_file or use_template_system:
+        if baseline_file or template_file:
             resume_docx_file = full_folder_path / f"{resume_name}.docx"
             resume_txt_file = full_folder_path / f"{resume_name}.txt"
             
@@ -242,14 +188,14 @@ def create_drive_sync_files(company_name: str, position_title: str,
             with open(resume_txt_file, 'w', encoding='utf-8') as f:
                 f.write(resume_content)
             
-            # Create .docx version based on system type
-            if use_template_system and template_file:
-                # Use docxtpl-based template replacement for 2-document system
+            # Create .docx version using template system
+            if template_file:
+                # Use docxtpl-based template replacement
                 print(f"DEBUG: Resume content length: {len(resume_content)}")
                 print(f"DEBUG: Resume content preview: {resume_content[:300]}...")
                 
                 # Parse Claude's response to extract tag values
-                tag_values = parse_claude_response_for_tags(resume_content, "")  # baseline_content if needed
+                tag_values = parse_claude_response_for_tags(resume_content, baseline_content)
                 print(f"DEBUG: Extracted {len(tag_values)} tag values: {list(tag_values.keys())}")
                 
                 copy_success = tag_based_template_replacement(template_file, resume_docx_file, tag_values)
@@ -258,10 +204,10 @@ def create_drive_sync_files(company_name: str, position_title: str,
                 else:
                     print(f"Failed to create .docx resume using template system: {resume_docx_file}")
             else:
-                # Use original content replacement system
+                # Fallback: simple text-to-docx conversion
                 copy_success = write_docx_content(resume_docx_file, resume_content, preserve_formatting=True)
                 if copy_success:
-                    print(f"Created optimized resume with structured formatting: {resume_docx_file}")
+                    print(f"Created resume with basic formatting: {resume_docx_file}")
                 else:
                     print(f"Failed to create .docx resume: {resume_docx_file}")
             
@@ -271,7 +217,7 @@ def create_drive_sync_files(company_name: str, position_title: str,
             results['resume_link'] = f"file://{resume_docx_file.absolute()}" if copy_success else f"file://{resume_txt_file.absolute()}"
             
             if copy_success:
-                system_type = "tag-based template system" if use_template_system else "structured formatting"
+                system_type = "template system" if template_file else "structured formatting"
                 print(f"Successfully created resume using {system_type}: {resume_docx_file}")
             else:
                 print(f"Failed to create .docx resume, created text file only: {resume_txt_file}")
@@ -330,13 +276,13 @@ def create_drive_sync_files(company_name: str, position_title: str,
                 
                 # Parse Claude's full response (with template tags) for cover letter tags
                 cover_letter_full_response = cover_letter_content
-                if prompt_full_results and 3 in prompt_full_results:
-                    cover_letter_full_response = prompt_full_results[3]
+                if prompt_full_results and 2 in prompt_full_results:
+                    cover_letter_full_response = prompt_full_results[2]
                     print(f"DEBUG: Using full Claude response for cover letter template parsing")
                 else:
                     print(f"DEBUG: Using extracted content for cover letter template parsing (may not work)")
                 
-                cover_letter_tags = parse_claude_response_for_tags(cover_letter_full_response, "")
+                cover_letter_tags = parse_claude_response_for_tags(cover_letter_full_response, baseline_content)
                 print(f"DEBUG: Cover letter extracted {len(cover_letter_tags)} tag values: {list(cover_letter_tags.keys())}")
                 
                 if cover_letter_tags:
@@ -388,12 +334,24 @@ def create_drive_sync_files(company_name: str, position_title: str,
                 try:
                     print(f"Using interview prep template: {interview_prep_template_file}")
                     
-                    # Parse Claude's structured response
-                    interview_prep_tags = parse_interview_prep_response(interview_prep_content)
+                    # Parse Claude's template tag response using the same approach as resume/cover letter
+                    interview_prep_full_response = interview_prep_content
+                    if prompt_full_results and 3 in prompt_full_results:
+                        interview_prep_full_response = prompt_full_results[3]
+                        print(f"DEBUG: Using full Claude response for interview prep template parsing")
+                    else:
+                        print(f"DEBUG: Using extracted content for interview prep template parsing (may not work)")
                     
-                    # Add basic info tags
-                    interview_prep_tags['jobtitle'] = position_title
-                    interview_prep_tags['company'] = company_name
+                    interview_prep_tags = parse_claude_response_for_tags(interview_prep_full_response, "")
+                    
+                    # The template tags from Claude should already include company and jobtitle
+                    # But add fallbacks just in case
+                    if 'company' not in interview_prep_tags:
+                        interview_prep_tags['company'] = company_name
+                    if 'jobtitle' not in interview_prep_tags:
+                        interview_prep_tags['jobtitle'] = position_title
+                        
+                    print(f"DEBUG: Interview prep extracted {len(interview_prep_tags)} tag values: {list(interview_prep_tags.keys())}")
                     
                     # Use docxtpl for template replacement
                     interview_prep_docx_success = tag_based_template_replacement(
@@ -471,7 +429,6 @@ def generate_prompts(
     additional_details: str = "",
     cover_letter_base: str = "",
     template_content: str = "",
-    use_template_system: bool = False,
     resume_type: str = ""
 ) -> list[str]:
     """
@@ -484,44 +441,26 @@ def generate_prompts(
         resume_reference: The resume baseline content
         additional_details: Additional context or requirements for the application
         cover_letter_base: Optional base content for the cover letter
-        template_content: Template with tags (for 2-document system)
-        use_template_system: Whether to use 2-document template system
+        template_content: Template with tags (for template system)
         
     Returns:
         List of formatted prompt strings with placeholders
     """
     print(f"DEBUG: motivation_notes: {motivation_notes[:100]}...")
     print(f"DEBUG: job_description length: {len(job_description)}")
-    print(f"DEBUG: use_template_system parameter: {use_template_system}")
     print(f"DEBUG: template_content length: {len(template_content) if template_content else 'None'}")
-    print(f"DEBUG: prompts_config has prompt_1_template: {'prompt_1_template' in prompts_config}")
     
-    if use_template_system:
-        # For 2-document system, use the template-specific prompt
-        try:
-            formatted_prompt_1 = prompts_config.get('prompt_1_template', '').format(
-                resume_base=resume_reference,
-                job_description=job_description,
-                additional_details=additional_details,
-                resume_type=resume_type
-            )
-            print("✅ Using template-specific prompt_1_template for 2-document system")
-        except Exception as e:
-            print(f"❌ Error formatting template prompt: {str(e)}")
-            print("Falling back to standard prompt")
-            formatted_prompt_1 = prompts_config.get('prompt_1', '').format(
-                resume_base=resume_reference,
-                job_description=job_description,
-                additional_details=additional_details
-            )
-    else:
-        # Original system
+    # Format template-based prompts
+    try:
         formatted_prompt_1 = prompts_config.get('prompt_1', '').format(
             resume_base=resume_reference,
             job_description=job_description,
             additional_details=additional_details
         )
-        print("Using standard prompt_1 for original system")
+        print("✅ Using template-based prompt_1 for resume generation")
+    except Exception as e:
+        print(f"❌ Error formatting prompt: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to format prompt_1: {str(e)}")
     
     print(f"DEBUG: Formatted prompt_1 length: {len(formatted_prompt_1)} characters")
     print(f"DEBUG: Last 500 chars of prompt_1: ...{formatted_prompt_1[-500:]}")
@@ -536,20 +475,15 @@ def generate_prompts(
     return [
         formatted_prompt_1,
         prompts_config.get('prompt_2', '').format(
-            resume_from_prompt_1='[RESUME_FROM_PROMPT_1]',
             job_description=job_description,
+            motivation_notes=motivation_notes,
+            resume_from_prompt_1='[RESUME_FROM_PROMPT_1]',
+            cover_letter_base=cover_letter_base if cover_letter_base else "No cover letter template provided.",
             additional_details=additional_details
         ),
         prompts_config.get('prompt_3', '').format(
             job_description=job_description,
-            motivation_notes=motivation_notes,
-            resume_from_prompt_2='[RESUME_FROM_PROMPT_2]',
-            cover_letter_base=cover_letter_base if cover_letter_base else "No cover letter template provided.",
-            additional_details=additional_details
-        ),
-        prompts_config.get('prompt_4', '').format(
-            job_description=job_description,
-            resume_from_prompt_2='[RESUME_FROM_PROMPT_2]',
+            resume_from_prompt_1='[RESUME_FROM_PROMPT_1]',
             motivation_notes=motivation_notes,
             additional_details=additional_details
         )
@@ -673,10 +607,9 @@ This is an excellent opportunity to make a significant impact at {company_name}.
     
     resume_reference = ""
     template_content = ""
-    use_template_system = False
     
     if template_file and baseline_file:
-        # New 2-document system: we have both template and baseline
+        # Template system: we have both template and baseline
         try:
             # Load baseline content (now prefers .docx over .gdoc)
             resume_reference = read_content_file(baseline_file)
@@ -686,15 +619,13 @@ This is an excellent opportunity to make a significant impact at {company_name}.
             template_content = read_content_file(template_file)
             print(f"Successfully loaded template '{baseline_resume_name} Template' from {template_file.suffix} file: {len(template_content)} characters")
             
-            use_template_system = True
-            print(f"Using 2-document template system for '{baseline_resume_name}'")
+            print(f"Using template system for '{baseline_resume_name}'")
             print(f"Baseline preview: {resume_reference[:200]}...")
             print(f"Template preview: {template_content[:200]}...")
             
         except Exception as e:
             print(f"❌ ERROR: Failed to read template system files: {str(e)}")
-            print(f"Falling back to old system")
-            use_template_system = False
+            print(f"Trying baseline only fallback")
             # Still try to load baseline for fallback
             if baseline_file:
                 try:
@@ -769,7 +700,6 @@ This is an excellent opportunity to make a significant impact at {company_name}.
         additional_details=request.additional_details,
         cover_letter_base=cover_letter_base,
         template_content=template_content,
-        use_template_system=use_template_system,
         resume_type=baseline_resume_name
     )
     
@@ -778,10 +708,9 @@ This is an excellent opportunity to make a significant impact at {company_name}.
     prompt_full_results = {}  # Store full Claude responses for template processing
     claude_responses_folder = None  # Track where Claude responses were saved
     enabled_prompts_dict = {
-        1: request.enabled_prompts.prompt_1,
-        2: request.enabled_prompts.prompt_2,
-        3: request.enabled_prompts.prompt_3,
-        4: request.enabled_prompts.prompt_4
+        1: request.enabled_prompts.prompt_1,  # Resume generation
+        2: request.enabled_prompts.prompt_2,  # Cover letter generation  
+        3: request.enabled_prompts.prompt_3   # Interview prep generation
     }
     
     try:
@@ -792,31 +721,14 @@ This is an excellent opportunity to make a significant impact at {company_name}.
                 if i == 1:
                     prompt_results[1] = "Resume generation disabled"
                 elif i == 2:
-                    prompt_results[2] = prompt_results.get(1, "Resume refinement disabled")
+                    prompt_results[2] = "Cover letter generation disabled"
                 elif i == 3:
-                    prompt_results[3] = "Cover letter generation disabled"
-                elif i == 4:
-                    prompt_results[4] = "Interview prep disabled"
+                    prompt_results[3] = "Interview prep disabled"
                 continue
-            
-            # Skip steps 2 and 4 for template system ONLY if user didn't explicitly enable them
-            if use_template_system and (i == 2 or i == 4) and not enabled_prompts_dict.get(i, False):
-                print(f"Skipping prompt {i} for template system (user didn't enable)")
-                if i == 2:
-                    prompt_results[2] = prompt_results.get(1, "Resume refinement skipped")
-                else:  # i == 4
-                    prompt_results[4] = "Interview prep skipped for template system"
-                continue
-            
-            # If user enabled prompts 2 or 4 with template system, run them
-            if use_template_system and (i == 2 or i == 4) and enabled_prompts_dict.get(i, False):
-                print(f"Running prompt {i} for template system (user explicitly enabled)")
             
             # Replace placeholders with previous results
             if i > 1 and 1 in prompt_results:
                 prompt = prompt.replace("[RESUME_FROM_PROMPT_1]", prompt_results[1])
-            if i > 2 and 2 in prompt_results:
-                prompt = prompt.replace("[RESUME_FROM_PROMPT_2]", prompt_results[2])
         
             # Log when we're sending the prompt to Anthropic
             from datetime import datetime
@@ -860,40 +772,75 @@ This is an excellent opportunity to make a significant impact at {company_name}.
                 # Continue without saving Claude responses if folder creation fails
         
             # Define prompt names for clarity
-            prompt_names = ["Prompt 1 - Resume Optimization", "Prompt 2 - Resume Refinement", "Prompt 3 - Cover Letter", "Prompt 4 - Interview Prep"]
+            prompt_names = ["Prompt 1 - Resume Generation", "Prompt 2 - Cover Letter", "Prompt 3 - Interview Prep"]
             prompt_name = prompt_names[i-1] if i <= len(prompt_names) else f"Prompt {i}"
         
             result = await process_with_anthropic(prompt, request.claude_model, prompt_name, output_folder)
         
             print(f"DEBUG: Prompt {i} result length: {len(result)}")
             print(f"DEBUG: Prompt {i} result preview: {repr(result[:200])}")
+            
+            # Check if Claude indicates the job description is too minimal (only for prompt 1)
+            if i == 1:  # Resume generation prompt
+                minimal_job_indicators = [
+                    "extremely minimal",
+                    "job posting is extremely minimal",
+                    "without detailed requirements",
+                    "only showing",
+                    "minimal job description",
+                    "very limited information"
+                ]
+                
+                result_lower = result.lower()
+                if any(indicator in result_lower for indicator in minimal_job_indicators):
+                    print(f"❌ Detected minimal job description in Claude's response")
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="The job description appears to be too minimal for proper optimization. Please copy and paste the full job description from the company's website instead of using the URL scraper."
+                    )
         
             # Store full result for template processing
             prompt_full_results[i] = result
         
             # Extract just the content part for processing while keeping full response in Claude Response files
-            if i in [1, 2]:  # Resume prompts - extract content after reasoning
-                # Get user name from config for resume content detection
-                user_name = config.get('user.name', 'Your Name')
-                user_phone = config.get('user.phone', 'Your Phone Number')
+            if i == 1:  # Resume prompt - extract content after reasoning
+                # Try multiple approaches to extract resume content
+                extracted_result = result
                 
-                # Try to find content starting with user's name and phone
-                content_start = result.find(f"{user_name}\n{user_phone}")
-                if content_start != -1:
-                    extracted_result = result[content_start:]
-                    print(f"DEBUG: Found '{user_name}' in Prompt {i} at position {content_start}")
-                else:
-                    # Fallback: look for any content that starts with user's name
-                    fallback_start = result.find(user_name)
-                    if fallback_start != -1:
-                        extracted_result = result[fallback_start:]
-                        print(f"DEBUG: Found '{user_name}' fallback in Prompt {i} at position {fallback_start}")
+                # Approach 1: Look for common resume header patterns (name + contact info)
+                name_phone_patterns = [
+                    r'([A-Z][a-z]+ [A-Z][a-z]+)\n([0-9\-\(\)\s]+) \|',  # "Name Name\nPhone |" 
+                    r'([A-Z][a-z]+ [A-Z][a-z]+)\n([0-9\-\(\)\s]+\s*\|\s*[\w@\.]+)',  # "Name Name\nPhone | email"
+                    r'^([A-Z][a-z]+ [A-Z][a-z]+)$\n^([0-9\-\(\)\s]+)',  # Multiline name then phone
+                ]
+                
+                for pattern in name_phone_patterns:
+                    import re
+                    match = re.search(pattern, result, re.MULTILINE)
+                    if match:
+                        content_start = match.start()
+                        extracted_result = result[content_start:]
+                        print(f"DEBUG: Found resume header pattern in Prompt {i} at position {content_start}")
+                        break
+                
+                # Approach 2: If no header pattern found, look for the actual content after reasoning
+                if extracted_result == result:
+                    # Look for "Jerry Mindek" specifically (hardcoded fallback for existing system)
+                    jerry_start = result.find("Jerry Mindek\n614-560-5114")
+                    if jerry_start != -1:
+                        extracted_result = result[jerry_start:]
+                        print(f"DEBUG: Found 'Jerry Mindek' in Prompt {i} at position {jerry_start}")
                     else:
-                        extracted_result = result
-                        print(f"DEBUG: No '{user_name}' found in Prompt {i}, using full result")
+                        # Broader Jerry Mindek search
+                        jerry_fallback = result.find("Jerry Mindek")
+                        if jerry_fallback != -1:
+                            extracted_result = result[jerry_fallback:]
+                            print(f"DEBUG: Found 'Jerry Mindek' fallback in Prompt {i} at position {jerry_fallback}")
+                        else:
+                            print(f"DEBUG: No resume content patterns found in Prompt {i}, using full result")
                 prompt_results[i] = extracted_result
                 print(f"DEBUG: Stored Prompt {i} result: {repr(extracted_result[:100])}")
-            elif i == 3:  # Cover letter prompt - extract cover letter content from template tags
+            elif i == 2:  # Cover letter prompt - extract cover letter content from template tags
                 # Look for both single and double brace formats
                 template_start = result.find("{company}")
                 if template_start == -1:
@@ -901,7 +848,7 @@ This is an excellent opportunity to make a significant impact at {company_name}.
                 
                 if template_start != -1:
                     extracted_result = result[template_start:]
-                    print(f"DEBUG: Found template tags in Prompt 3 at position {template_start}")
+                    print(f"DEBUG: Found template tags in Prompt {i} at position {template_start}")
                     
                     # Look for content section in both formats
                     content_marker = "{content}\n"
@@ -911,16 +858,19 @@ This is an excellent opportunity to make a significant impact at {company_name}.
                     content_start = extracted_result.find(content_marker)
                     if content_start != -1:
                         content_start += len(content_marker)
-                        # Get user name for signature detection
-                        user_name = config.get('user.name', 'Your Name')
-                        content_end = extracted_result.find(f"\n\n{user_name}")
-                        if content_end == -1:
-                            content_end = extracted_result.find(f"\n{user_name}")
+                        # Look for signature patterns (fallback to Jerry Mindek for existing system)
+                        signature_patterns = ["\n\nJerry Mindek", "\nJerry Mindek"]
+                        content_end = -1
+                        
+                        for sig_pattern in signature_patterns:
+                            content_end = extracted_result.find(sig_pattern)
+                            if content_end != -1:
+                                content_end += len(sig_pattern)
+                                break
+                        
                         if content_end == -1:
                             # Look for signature at end
                             content_end = len(extracted_result)
-                        else:
-                            content_end += len(f"\n\n{user_name}")
                             
                         # Extract just the cover letter content for display
                         cover_letter_content = extracted_result[content_start:content_end].strip()
@@ -932,9 +882,9 @@ This is an excellent opportunity to make a significant impact at {company_name}.
                         print(f"DEBUG: Using full template result as fallback")
                 else:
                     extracted_result = result  # Use full result if template tags not found
-                    print(f"DEBUG: No template tags found in Prompt 3, using full result")
+                    print(f"DEBUG: No template tags found in Prompt {i}, using full result")
                     prompt_results[i] = extracted_result
-                print(f"DEBUG: Stored Prompt 3 result: {repr(prompt_results[i][:100])}")
+                print(f"DEBUG: Stored Prompt {i} result: {repr(prompt_results[i][:100])}")
             else:  # Interview prep - extract structured content after strategy analysis
                 company_start = result.find("COMPANY:")
                 if company_start != -1:
@@ -957,10 +907,10 @@ This is an excellent opportunity to make a significant impact at {company_name}.
     for key, value in prompt_results.items():
         print(f"DEBUG: prompt_results[{key}] = {repr(value[:50])}..." if len(value) > 50 else f"DEBUG: prompt_results[{key}] = {repr(value)}")
     
-    # Use prompt 2 if available, otherwise prompt 1 for resume
-    resume_text = prompt_results.get(2, prompt_results.get(1, "Resume generation failed"))
-    cover_letter = prompt_results.get(3, "Cover letter generation failed")
-    interview_prep = prompt_results.get(4, "Interview prep skipped")
+    # Use prompt 1 for resume (only resume prompt now)
+    resume_text = prompt_results.get(1, "Resume generation failed")
+    cover_letter = prompt_results.get(2, "Cover letter generation failed")
+    interview_prep = prompt_results.get(3, "Interview prep skipped")
     
     response_data = {
         "resume_text": resume_text,
@@ -986,9 +936,9 @@ This is an excellent opportunity to make a significant impact at {company_name}.
                 resume_content=resume_text,
                 cover_letter_content=cover_letter,
                 interview_prep_content=interview_prep,
-                use_template_system=use_template_system,
-                template_file=template_file if use_template_system else None,
-                prompt_full_results=prompt_full_results
+                        template_file=template_file,
+                prompt_full_results=prompt_full_results,
+                baseline_content=resume_reference
             )
             
             if sync_results:

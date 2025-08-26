@@ -27,7 +27,6 @@ class ResumeAutomation {
         this.enablePrompt1 = document.getElementById('enablePrompt1');
         this.enablePrompt2 = document.getElementById('enablePrompt2');
         this.enablePrompt3 = document.getElementById('enablePrompt3');
-        this.enablePrompt4 = document.getElementById('enablePrompt4');
         
         // Resume tracking elements
         this.enableResumeTracking = document.getElementById('enableResumeTracking');
@@ -89,15 +88,20 @@ class ResumeAutomation {
         this.enablePrompt1.addEventListener('change', this.saveSettings.bind(this));
         this.enablePrompt2.addEventListener('change', this.saveSettings.bind(this));
         this.enablePrompt3.addEventListener('change', this.saveSettings.bind(this));
-        this.enablePrompt4.addEventListener('change', this.saveSettings.bind(this));
         
         // Resume tracking event listeners
         this.enableResumeTracking.addEventListener('change', this.saveSettings.bind(this));
         this.preventDuplicateResumes.addEventListener('change', this.saveSettings.bind(this));
         
         // Auto-detect job info when URL changes
-        this.jobUrlInput.addEventListener('blur', this.autoDetectJobInfo.bind(this));
-        this.jobUrlInput.addEventListener('change', this.autoDetectJobInfo.bind(this));
+        this.jobUrlInput.addEventListener('blur', () => {
+            console.log('Job URL blur event triggered:', this.jobUrlInput.value);
+            this.autoDetectJobInfo();
+        });
+        this.jobUrlInput.addEventListener('change', () => {
+            console.log('Job URL change event triggered:', this.jobUrlInput.value);
+            this.autoDetectJobInfo();
+        });
         
         // Auto-select baseline resume when position title changes manually
         this.positionTitleInput.addEventListener('blur', this.handlePositionTitleChange.bind(this));
@@ -109,6 +113,13 @@ class ResumeAutomation {
         
         // Show drive options by default since it's checked
         this.toggleDriveOptions();
+        
+        // Debug: Check if elements are found
+        console.log('DOM elements check:');
+        console.log('jobUrlInput:', this.jobUrlInput);
+        console.log('companyNameInput:', this.companyNameInput);
+        console.log('positionTitleInput:', this.positionTitleInput);
+        console.log('autoDetectionStatus:', this.autoDetectionStatus);
     }
     
     async handleSubmit(event) {
@@ -129,8 +140,7 @@ class ResumeAutomation {
             enabled_prompts: {
                 prompt_1: this.enablePrompt1.checked,
                 prompt_2: this.enablePrompt2.checked,
-                prompt_3: this.enablePrompt3.checked,
-                prompt_4: this.enablePrompt4.checked
+                prompt_3: this.enablePrompt3.checked
             },
             // Resume tracking settings
             enable_resume_tracking: this.enableResumeTracking.checked,
@@ -142,6 +152,9 @@ class ResumeAutomation {
             return;
         }
         
+        console.log('Resume generation request data:', requestData);
+        console.log('=== STARTING RESUME GENERATION REQUEST ===');
+        
         this.showLoading(true);
         this.hideError();
         this.hideResults();
@@ -149,6 +162,7 @@ class ResumeAutomation {
         // Removed all status tracking
         
         try {
+            console.log('About to make fetch request to /api/generate-resume');
             const response = await fetch('/api/generate-resume', {
                 method: 'POST',
                 headers: {
@@ -158,11 +172,34 @@ class ResumeAutomation {
             });
             
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                let errorData;
+                const responseText = await response.text();
+                console.error('Raw server response:', responseText);
+                console.error('Response status:', response.status);
+                
+                try {
+                    errorData = JSON.parse(responseText);
+                    console.error('Parsed error data:', errorData);
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                } catch (jsonError) {
+                    console.error('Response is not JSON, likely HTML error page');
+                    throw new Error(`Server error (${response.status}): ${responseText.substring(0, 200)}...`);
+                }
             }
             
-            const result = await response.json();
+            const successText = await response.text();
+            console.log('Raw success response (first 500 chars):', successText.substring(0, 500));
+            console.log('Response content type:', response.headers.get('content-type'));
+            
+            let result;
+            try {
+                result = JSON.parse(successText);
+                console.log('Successfully parsed JSON response');
+            } catch (jsonError) {
+                console.error('Success response is not JSON, full response:', successText);
+                console.error('JSON parse error:', jsonError.message);
+                throw new Error('Server returned invalid response format - check console for full response');
+            }
             
             // Check if this was a duplicate detection
             if (!result.success && result.drive_results?.duplicate_detected) {
@@ -174,7 +211,8 @@ class ResumeAutomation {
             this.displayResults(result);
             
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Full error object:', error);
+            console.error('Error message:', error.message);
             this.showError(`Failed to generate resume: ${error.message}`);
         } finally {
             this.showLoading(false);
@@ -309,7 +347,6 @@ class ResumeAutomation {
                 prompt_1: this.enablePrompt1.checked,
                 prompt_2: this.enablePrompt2.checked,
                 prompt_3: this.enablePrompt3.checked,
-                prompt_4: this.enablePrompt4.checked
             }
         };
         localStorage.setItem('resumeAutomationSettings', JSON.stringify(settings));
@@ -340,7 +377,6 @@ class ResumeAutomation {
                     this.enablePrompt1.checked = settings.enabledPrompts.prompt_1 !== false; // Default to true
                     this.enablePrompt2.checked = settings.enabledPrompts.prompt_2 === true;  // Default to false
                     this.enablePrompt3.checked = settings.enabledPrompts.prompt_3 !== false; // Default to true
-                    this.enablePrompt4.checked = settings.enabledPrompts.prompt_4 === true;  // Default to false
                 }
                 console.log('Settings loaded:', settings);
             } catch (e) {
@@ -408,13 +444,11 @@ class ResumeAutomation {
             return;
         }
         
-        // Only auto-detect if fields are empty (don't override user edits)
-        const hasExistingData = this.companyNameInput.value.trim() || this.positionTitleInput.value.trim();
-        
         // Show loading status
         this.showAutoDetectionStatus('🔍 Auto-detecting company and position...', 'loading');
         
         try {
+            console.log('Making auto-detection request for URL:', jobUrl);
             const response = await fetch('/api/parse-job', {
                 method: 'POST',
                 headers: {
@@ -423,14 +457,17 @@ class ResumeAutomation {
                 body: JSON.stringify({ job_url: jobUrl })
             });
             
+            console.log('Auto-detection response status:', response.status);
+            
             const result = await response.json();
+            console.log('Auto-detection result:', result);
             
             if (result.success) {
-                // Only fill empty fields or if user hasn't made edits
-                if (!this.companyNameInput.value.trim() && result.company_name) {
+                // Auto-populate fields with detected values (overwrite if we have good data)
+                if (result.company_name && result.company_name !== "Not found") {
                     this.companyNameInput.value = result.company_name;
                 }
-                if (!this.positionTitleInput.value.trim() && result.position_title) {
+                if (result.position_title && result.position_title !== "404 error" && result.position_title !== null) {
                     this.positionTitleInput.value = result.position_title;
                 }
                 

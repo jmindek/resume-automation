@@ -1,113 +1,71 @@
 # Custom Resume Generation Prompts Template
-# NOTE: This template contains placeholder company information. 
+# NOTE: This template contains placeholder information and must be customized.
 #
 # SETUP INSTRUCTIONS:
-# 1. Copy this file to prompts.yaml: cp prompts_template.yaml prompts.yaml
-# 2. Replace the following placeholders with your personal information:
-#    - {name}: Your full name
-#    - {phone}: Your phone number  
-#    - {email}: Your email address
+# 1. Copy this file to your own prompts file: cp prompts_template.yaml {your_name}_prompts.yaml
+# 2. Replace ALL placeholders with your actual information:
+#    - {name}: Your full name (e.g., "John Smith")
+#    - {phone}: Your phone number (e.g., "555-123-4567")
+#    - {email}: Your email address (e.g., "john.smith@email.com")
 #    - {city_state}: Your city and state (e.g., "New York, NY")
-#    - Replace {COMPANY_NAME1}, {company_1_date_range}, {COMPANY_NAME2}, {company_2_date_range}, etc. with your actual company names
-# 3. Modify the prompt sections as needed.
+#    - {COMPANY_1}, {COMPANY_2}, etc.: Your actual company names
+#    - {company_1_dates}, {company_2_dates}, etc.: Your actual employment dates
+#    - {linkedin_url}, {github_url}, {portfolio_url}: Your actual profile URLs
+# 3. Update the config.yaml file to point to your customized prompts file
+# 4. Customize company context and skill restrictions as needed
 
+# Main resume prompt - generates template tags for docx replacement
 prompt_1: |
-  Optimize the following resume for this specific job description. You MUST follow the EXACT formatting structure shown below.
+  Create optimized resume content for {name} using TEMPLATE TAGS for docx template replacement.
 
-  CRITICAL FORMATTING REQUIREMENTS - Follow this structure EXACTLY:
-
-  HEADER SECTION:
-  [Name]
-  [Phone] | [Email] | [City, State]
-
-  Key Achievements
-  1. [Achievement with specific metrics from ONE company - never combine across companies]
-  2. [Achievement with specific metrics from ONE company - never combine across companies]  
-  3. [Achievement with specific metrics from ONE company - never combine across companies]
-  4. [Achievement with specific metrics from ONE company - never combine across companies]
-  5. [Achievement with specific metrics from ONE company - never combine across companies]
-
-  SKILLS
-  LEADERSHIP & MANAGEMENT
-  • [skill] • [skill] • [skill] • [skill]
-
-  ENGINEERING & ARCHITECTURE  
-  • [skill] • [skill] • [skill] • [skill]
-
-  EXPERIENCE
-  [Company Name] | [Location] | [Date Range]
-  [Job Title]
-  [Role description]
-  • [Achievement bullet with metrics]
-  • [Achievement bullet with metrics]
-  • [Achievement bullet with metrics]
-
-  [Company Name] | [Location] | [Date Range]  
-  [Job Title]
-  [Role description]
-  • [Achievement bullet with metrics]
-  • [Achievement bullet with metrics]
-
-  EDUCATION
-  [Degree] | [School] | [Location]
-
-  OPTIMIZATION REQUIREMENTS:
-  - Align all content with job requirements using Problem-Solution-Impact format
-  - Match their technology needs and terminology when my experience aligns
-  - Emphasize relevant metrics and achievements
-  - Don't add facts not in the original resume
-  - Don't bold any text
-  - CRITICAL: Each key achievement must be from ONE company only - never combine achievements from different companies into a single bullet point
-  - If an achievement involves multiple metrics, they must all be from the same role at the same company
-
-  Job Description: {job_description}
-  Additional Context: {additional_details}
-  Original Resume: {resume_base}
-  
-  Return ONLY the resume following the EXACT structure above:
-
-# Template-based prompt for 2-document system  
-prompt_1_template: |
-  Optimize {name}'s resume content for this specific job. Since we're skipping refinement steps, make this the final optimized version.
-
-  Create a compelling, job-targeted resume using {name}'s actual experience and achievements.
+  You must return content with template tags that will be used to populate a docx template.
 
   CRITICAL REQUIREMENTS:
-  - Use ONLY {name}'s real information from his baseline resume
+  - Use ONLY {name}'s real information from the baseline resume
   - Do NOT create fake names, contact info, or experiences  
   - Optimize all content for this specific job description
-  - Use {name}'s actual company experiences ({COMPANY_NAME1}, {COMPANY_NAME2}, etc.)
-  - Include specific metrics and achievements from his background
-  - Don't use the role name in the job descriptions
+  - Use {name}'s actual company experiences ({COMPANY_1}, {COMPANY_2}, {COMPANY_3}, {COMPANY_4})
+  - Include specific metrics and achievements from their background
+  - Don't use implementing psychological safety frameworks as an achievement
   - CRITICAL: Each key achievement must be from ONE company only - never combine achievements from different companies into a single bullet point
   - If an achievement involves multiple metrics, they must all be from the same role at the same company
-  - For the {{headline}} section: Extract ONLY the 2-3 sentence leadership philosophy/professional summary content from {name}'s baseline resume - DO NOT include any role titles or headers like "Engineering Manager" or "Technical Leader"
-  
-  SKILLS SECTION REQUIREMENTS:
-  - Analyze the job description to determine the most relevant skill categories
-  - Choose 2-4 skill category names that best match what the employer is seeking
-  - Examples: "LEADERSHIP AND MANAGEMENT", "ENGINEERING AND ARCHITECTURE", "PRODUCT AND STRATEGY", etc.
-  - Each category should contain 4-6 specific skills separated by bullets (•)
-  - Don't add skills not supported by the original resume
-  - Don't bold any text or wrap skill category headings in asterisks
-  - Skill category headings should be plain text without any markdown formatting
 
-  FORMATTING REQUIREMENTS - Follow this EXACT structure:
-  {name}
-  {phone} | {email} | {city_state}
-  LinkedIn | Github | Substack
+  REQUIRED TEMPLATE TAG FORMAT - USE EXACTLY THIS FORMAT:
+  {{name}}
+  [Extract the full name from {name}'s baseline resume]
+
+  {{phone}}
+  [Extract phone number from {name}'s baseline resume]
+
+  {{email}}
+  [Extract email address from {name}'s baseline resume]
+
+  {{city_stabbr}}
+  [Extract city and state abbreviation in format "City, ST" from {name}'s baseline resume]
+
+  {{linkedin}}
+  [Extract LinkedIn URL or profile from {name}'s baseline resume]
+
+  {{otherlink1}}
+  [Extract Github URL or profile from {name}'s baseline resume]
+
+  {{otherlink2}}
+  [Extract Portfolio/Blog/Substack URL or profile from {name}'s baseline resume]
 
   {{headline}}
-  [2-3 sentences from {name}'s baseline resume - NO titles or role names, just the leadership philosophy content]
+  [Extract ONLY the 2-3 sentence leadership philosophy/professional summary content from {name}'s baseline resume - DO NOT include any role titles or headers like "Engineering Manager" or "Technical Leader"]
 
-  Key Achievements
+  {{role}}
+  [Extract the job title/position from the job description]
+
+  {{key_achievements}}
   1. [Achievement 1 with specific metrics from ONE company - never combine across companies]
-  2. [Achievement 2 with specific metrics from ONE company - never combine across companies]
+  2. [Achievement 2 with specific metrics from ONE company - never combine across companies]  
   3. [Achievement 3 with specific metrics from ONE company - never combine across companies]
   4. [Achievement 4 with specific metrics from ONE company - never combine across companies]
   5. [Achievement 5 with specific metrics from ONE company - never combine across companies]
 
-  Skills
+  {{skills_section}}
   LEADERSHIP AND MANAGEMENT
   [relevant skills from {name}'s experience] • [relevant skills] • [etc]
 
@@ -116,116 +74,64 @@ prompt_1_template: |
 
   [Add 1-3 additional skill categories if the job description suggests more specialized areas]
 
-  Professional Experience
-  {COMPANY_NAME1}, {city_state} (Remote) | {company_1_date_range}
-  [2-3 sentence role description for {COMPANY_NAME1} from baseline]
-  • [{name}'s achievement 1 with metrics]
-  • [{name}'s achievement 2 with metrics]
-  • [{name}'s achievement 3 with metrics]
+  {{experience_company1}}
+  [2-3 sentence role description for {COMPANY_1} from baseline optimized for this job]
+  [{name}'s achievement 1 with metrics optimized for this job]
+  [{name}'s achievement 2 with metrics optimized for this job]
+  [{name}'s achievement 3 with metrics optimized for this job]
 
-  {COMPANY_NAME2}, {city_state} | {company_2_date_range}
-  [2-3 sentence role description for {COMPANY_NAME2} from baseline]
-  • [{name}'s achievement 1 with metrics]
-  • [{name}'s achievement 2 with metrics]
-  • [{name}'s achievement 3 with metrics]
+  {{experience_company2}}
+  [2-3 sentence role description for {COMPANY_2} from baseline optimized for this job]
+  [{name}'s achievement 1 with metrics optimized for this job]
+  [{name}'s achievement 2 with metrics optimized for this job]
+  [{name}'s achievement 3 with metrics optimized for this job]
 
-  {COMPANY_NAME3}, {city_state} | {company_3_date_range}
-  [2-3 sentence role description for {COMPANY_NAME3} from baseline]
-  • [{name}'s achievement 1 with metrics]
-  • [{name}'s achievement 2 with metrics]
-  • [{name}'s achievement 3 with metrics]
+  {{experience_company3}}
+  [2-3 sentence role description for {COMPANY_3} from baseline optimized for this job]
+  [{name}'s achievement 1 with metrics optimized for this job]
+  [{name}'s achievement 2 with metrics optimized for this job]
+  [{name}'s achievement 3 with metrics optimized for this job]
 
-  {COMPANY_NAME4}, {city_state} | {company_4_date_range}
-  [2-3 sentence role description for {COMPANY_NAME4} from baseline]
-  • [{name}'s achievement 1 with metrics]
-  • [{name}'s achievement 2 with metrics]
+  {{experience_company4}}
+  [2-3 sentence role description for {COMPANY_4} from baseline optimized for this job]
+  [{name}'s achievement 1 with metrics optimized for this job]
+  [{name}'s achievement 2 with metrics optimized for this job]
 
-  Education
-  [{name}'s actual education from baseline resume blank if absent]
+  {{education}}
+  [{name}'s actual education from baseline resume]
+
+  CRITICAL: You MUST use double curly braces around the tag names (same format as shown above), NOT single braces
+
+  Company context (customize for your background):
+  - {COMPANY_1}: [Describe what this company does - e.g., "P&C insurance (not health, not fintech)"]
+  - {COMPANY_2}: [Describe what this company does - e.g., "Auto insurance (not health, not fintech)"] 
+  - {COMPANY_3}: [Describe what this company does - e.g., "Insurtech, healthcare related, not fintech"]
+  - {COMPANY_4}: [Describe what this company does - e.g., "SMB directory for online presence/customer acquisition"]
+  - Technologies you DON'T have: [List technologies you haven't used - e.g., "I don't have Databricks, dbt, Snowflake, Looker, Tableau experience"]
 
   Job Description: {job_description}
   Additional Context: {additional_details}
   {name}'s Baseline Resume: {resume_base}
   
+  OPTIMIZATION REQUIREMENTS - Make this a 10/10 recruiter pick by:
+  1. LENGTH OPTIMIZATION: Remove low-impact content. Be selective and concise - aim for 1-2 page resume
+  2. MISSION ALIGNMENT: Add language showing understanding of their mission/values/culture
+  3. LEADERSHIP DIFFERENTIATION: Highlight {name}'s unique leadership approach vs generic management
+  4. FORMAT OPTIMIZATION: Use smart brevity - impactful descriptions, strong action verbs
+  5. INDUSTRY-SPECIFIC LANGUAGE: Use terminology that resonates with their domain
+  6. UNIQUE QUALIFICATION FOCUS: Emphasize what makes {name} uniquely qualified, not just qualified
+  
   FIRST, provide your reasoning and analysis:
   - What key themes and requirements did you identify in the job description?
   - Which of {name}'s experiences best align with these requirements?
-  - What specific changes did you make and why?
+  - What specific optimizations will you make for recruiter appeal?
+  - How will you differentiate {name}'s leadership approach?
   - How did you prioritize which achievements to highlight?
 
-  THEN, return the complete optimized resume following the exact format above:
+  THEN, return the content with template tags in the exact format above:
 
+# Cover letter prompt - generates template tags for docx replacement
 prompt_2: |
-  Refine this resume to maximize recruiter appeal. You MUST maintain the EXACT formatting structure.
-
-  REQUIRED STRUCTURE - Follow this EXACTLY:
-
-  {name}
-  {phone} | {email} | {city_state}
-  LinkedIn | Github | Substack
-
-  [First Section Title - Leadership Philosophy or Professional Summary]
-  [2-3 refined sentences that enhance the original content]
-
-  Key Achievements
-  1. [Achievement with specific metrics from ONE company - never combine across companies]
-  2. [Achievement with specific metrics from ONE company - never combine across companies]  
-  3. [Achievement with specific metrics from ONE company - never combine across companies]
-  4. [Achievement with specific metrics from ONE company - never combine across companies]
-  5. [Achievement with specific metrics from ONE company - never combine across companies]
-
-  Skills
-  LEADERSHIP AND MANAGEMENT
-  [relevant skills] • [relevant skills] • [etc]
-
-  ENGINEERING AND ARCHITECTURE
-  [relevant skills] • [relevant skills] • [etc]
-
-  Professional Experience
-  {COMPANY_NAME1}, {city_state} (Remote) | {company_1_date_range}
-  [Refined role description]
-  • [Achievement bullet with metrics]
-  • [Achievement bullet with metrics]
-  • [Achievement bullet with metrics]
-
-  {COMPANY_NAME2}, {city_state} | {company_2_date_range}
-  [Refined role description]
-  • [Achievement bullet with metrics]
-  • [Achievement bullet with metrics]
-  • [Achievement bullet with metrics]
-
-  [Additional companies as in original...]
-
-  Education
-  [Education from original resume]
-
-  REFINEMENT FOCUS:
-  - Remove low-impact content for brevity
-  - Add mission/values alignment language  
-  - Highlight unique leadership approach
-  - Use industry-specific terminology
-  - Emphasize what makes me uniquely qualified
-  - Keep all structural formatting identical
-  - Don't bold any text or wrap skill category headings in asterisks
-  - Don't use the role name in the job description
-  - Skill category headings should be plain text without any markdown formatting
-  - CRITICAL: Each key achievement must remain from ONE company only - never combine achievements from different companies during refinement
-  - Preserve company-specific context - do not merge metrics or accomplishments across different roles
-  
-
-  Resume to refine: {resume_from_prompt_1}
-  Job Description: {job_description}
-  Additional Context: {additional_details}
-  
-  FIRST, explain your refinement decisions:
-  - What improvements did you make to enhance recruiter appeal?
-  - Which content did you strengthen or modify and why?
-  - How did you enhance the mission alignment language?
-  - What industry terminology did you incorporate?
-
-  THEN, return ONLY the refined resume following the EXACT structure above:
-
-prompt_3: |
   Create cover letter content for {name} using template tags for docx template replacement.
 
   You must return content with template tags that will be used to populate a docx template.
@@ -237,6 +143,9 @@ prompt_3: |
   {{role}}
   [Job title/position extracted from job description]
 
+  {{name}}
+  [Extract the full name from the resume/baseline]
+
   {{content}}
   [Complete cover letter body from greeting to closing - this is the main content]
 
@@ -245,18 +154,18 @@ prompt_3: |
   CONTENT REQUIREMENTS for {{content}} section:
   - Start with "Dear Hiring Manager," (or appropriate greeting)
   - Write 2-3 compelling paragraphs tailored for this specific job
-  - Include 2-3 most relevant achievements with specific metrics from {name}'s experience
+  - Include 2-3 most relevant achievements with specific metrics from the person's experience
   - Don't mention psychological safety frameworks
   - Show mission alignment and cultural fit with concrete examples
   - Demonstrate genuine interest and enthusiasm for the role
-  - End with "Sincerely,\n\n{name}" (EXACTLY this format)
+  - End with "Sincerely,\n\n[person's name from baseline resume]" (use actual name from resume)
   - Use authentic, professional tone without overstating expertise
-  - {name} is available immediately
+  - Person is available immediately
 
   CRITICAL REQUIREMENTS:
-  - This is for {name} - do not use any other name
-  - Always sign "{name}" - never John Smith, Michael Chen, or any other name
-  - Use {name}'s actual experience and achievements only
+  - Use the actual person's name from the baseline resume - do not hardcode any specific name
+  - Always sign with the person's actual name from the resume
+  - Use the person's actual experience and achievements only
   - Return content in the exact template tag format shown above with DOUBLE curly braces
   - Don't bold any text or use markdown formatting
   - EXTRACT the actual company name and job title from the job description - do NOT use placeholder text like "[Company name not provided]"
@@ -264,14 +173,17 @@ prompt_3: |
   Job Description: {job_description}
   Motivation Notes: {motivation_notes}
   Additional Details: {additional_details}
-  {name}'s Optimized Resume: {resume_from_prompt_2}
+  {name}'s Optimized Resume: {resume_from_prompt_1}
   
   EXAMPLE OF CORRECT OUTPUT FORMAT:
   {{company}}
   Awesome Company XYZ
   
   {{role}}
-  Senior Manager
+  Senior Engineering Manager
+  
+  {{name}}
+  {name}
   
   {{content}}
   Dear Hiring Manager,
@@ -288,14 +200,15 @@ prompt_3: |
 
   THEN, return the content with template tags in the exact format above:
 
-prompt_4: |
+# Interview prep prompt - generates structured interview preparation notes
+prompt_3: |
   Based on this tailored resume and JD analysis, create interview prep notes using the structured format below.
 
   FIRST, explain your interview strategy analysis:
   - What are the top 3 pain points you identified from the job description?
-  - How do {name}'s experiences specifically address each pain point?
+  - How does the person's experiences specifically address each pain point?
   - What potential concerns or gaps did you identify and how should they be addressed?
-  - What makes {name} uniquely qualified compared to typical candidates?
+  - What makes this person uniquely qualified compared to typical candidates?
 
   THEN, provide the interview prep content in this EXACT structured format for Word template processing:
 
@@ -306,7 +219,7 @@ prompt_4: |
   [Extract the job title/position from job description]
 
   CORE_NARRATIVE:
-  [Write a compelling 2-3 sentence positioning statement that differentiates {name} and directly addresses their needs]
+  [Write a compelling 2-3 sentence positioning statement that differentiates the person and directly addresses their needs]
 
   PROOF_POINTS:
   1. [Header: Brief title for first proof point]
@@ -320,14 +233,14 @@ prompt_4: |
 
   POTENTIAL_CONCERNS:
   1. [Header: First potential concern they might have]
-  [Content: How {name} should address this concern with examples]
+  [Content: How the person should address this concern with examples]
 
   2. [Header: Second potential concern]
   [Content: How to address with evidence]
 
   CULTURAL_ALIGNMENT:
   1. [Header: Mission/values alignment point]
-  [Content: How {name} demonstrates this alignment with concrete examples]
+  [Content: How the person demonstrates this alignment with concrete examples]
 
   2. [Header: Culture fit demonstration]
   [Content: Specific evidence of cultural fit]
@@ -339,7 +252,7 @@ prompt_4: |
   4. [Question about company direction/strategy]
 
   CLOSING_POSITIONING:
-  [2-3 sentence summary of why {name} is uniquely qualified vs other candidates, tying together their specific experiences with their specific needs]
+  [2-3 sentence summary of why the person is uniquely qualified vs other candidates, tying together their specific experiences with their specific needs]
 
   Job Description: {job_description}
-  Final Resume: {resume_from_prompt_2}
+  Final Resume: {resume_from_prompt_1}

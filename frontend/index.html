@@ -285,7 +285,7 @@
             </div>
             
             
-            <div id="driveOptions" style="display: none; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 20px; background-color: #f9f9f9;">
+            <div id="driveOptions" style="display: block; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 20px; background-color: #f9f9f9;">
                 <div class="form-group">
                     <label for="companyName">Company Name:</label>
                     <input type="text" id="companyName" placeholder="e.g., Google, Microsoft, Meta" tabindex="3">
@@ -415,37 +415,30 @@
             <div class="form-group">
                 <div style="display: flex; align-items: center; margin-bottom: 10px;">
                     <input type="checkbox" id="enablePrompt1" checked style="width: auto; margin-right: 10px;">
-                    <label for="enablePrompt1" style="margin-bottom: 0;">Prompt 1: Resume Optimization</label>
+                    <label for="enablePrompt1" style="margin-bottom: 0;">Prompt 1: Resume Generation</label>
                 </div>
-                <small style="color: #666; font-size: 12px;">Creates the initial optimized resume from baseline content.</small>
+                <small style="color: #666; font-size: 12px;">Creates the optimized resume from baseline content using template tags.</small>
             </div>
             
             <div class="form-group">
                 <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="checkbox" id="enablePrompt2" style="width: auto; margin-right: 10px;">
-                    <label for="enablePrompt2" style="margin-bottom: 0;">Prompt 2: Resume Refinement</label>
+                    <input type="checkbox" id="enablePrompt2" checked style="width: auto; margin-right: 10px;">
+                    <label for="enablePrompt2" style="margin-bottom: 0;">Prompt 2: Cover Letter</label>
                 </div>
-                <small style="color: #666; font-size: 12px;">Refines the resume for maximum recruiter appeal. (Optional for template system)</small>
+                <small style="color: #666; font-size: 12px;">Generates a tailored cover letter using template tags.</small>
             </div>
             
             <div class="form-group">
                 <div style="display: flex; align-items: center; margin-bottom: 10px;">
                     <input type="checkbox" id="enablePrompt3" checked style="width: auto; margin-right: 10px;">
-                    <label for="enablePrompt3" style="margin-bottom: 0;">Prompt 3: Cover Letter</label>
+                    <label for="enablePrompt3" style="margin-bottom: 0;">Prompt 3: Interview Prep</label>
                 </div>
-                <small style="color: #666; font-size: 12px;">Generates a tailored cover letter for the position.</small>
+                <small style="color: #666; font-size: 12px;">Creates strategic interview prep notes and positioning.</small>
             </div>
             
-            <div class="form-group">
-                <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="checkbox" id="enablePrompt4" style="width: auto; margin-right: 10px;">
-                    <label for="enablePrompt4" style="margin-bottom: 0;">Prompt 4: Interview Preparation</label>
-                </div>
-                <small style="color: #666; font-size: 12px;">Creates strategic interview prep notes and positioning. (Optional for template system)</small>
-            </div>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=1.2"></script>
 </body>
 </html>

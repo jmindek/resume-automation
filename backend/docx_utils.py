@@ -2,8 +2,15 @@
 
 from docx import Document
 from docxtpl import DocxTemplate
+from docx.oxml import OxmlElement, ns
+from docx.oxml.ns import qn
 from pathlib import Path
 from typing import Optional, Dict, Any
+
+
+# Note: To get hyperlinks like in the baseline resume, you need to manually update 
+# the template file to have hyperlinks instead of plain text template tags.
+# DocxTemplate preserves existing hyperlinks in the template but cannot create new ones from text.
 
 
 def read_docx_content(file_path: Path) -> str:
@@ -142,88 +149,6 @@ def copy_docx_with_new_content(source_path: Path, dest_path: Path, new_content: 
         return False
 
 
-def smart_template_replacement(source_path: Path, dest_path: Path, template_content: str, replacement_content: str, placeholder: str = "{{CONTENT}}") -> bool:
-    """
-    Replace a specific placeholder in a template with new content while preserving formatting.
-    This is used for cover letters with {{CONTENT}} tags.
-    
-    Args:
-        source_path: Path to template .docx file
-        dest_path: Path for new .docx file
-        template_content: Original template content as text
-        replacement_content: New content to insert at placeholder location
-        placeholder: Placeholder tag to replace (default: "{{CONTENT}}")
-        
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        import shutil
-        
-        # Check if template contains the placeholder
-        if placeholder not in template_content:
-            # No placeholder found, use regular smart content replacement
-            return smart_content_replacement(source_path, dest_path, replacement_content)
-        
-        # First, make an exact copy of the source file
-        shutil.copy2(source_path, dest_path)
-        
-        # Load the copied document
-        doc = Document(dest_path)
-        
-        # Find and replace the placeholder in all paragraphs
-        placeholder_found = False
-        for paragraph in doc.paragraphs:
-            if placeholder in paragraph.text:
-                # Replace the placeholder with the new content
-                paragraph.text = paragraph.text.replace(placeholder, replacement_content)
-                placeholder_found = True
-        
-        # Also check tables for the placeholder
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        if placeholder in paragraph.text:
-                            paragraph.text = paragraph.text.replace(placeholder, replacement_content)
-                            placeholder_found = True
-        
-        if not placeholder_found:
-            print(f"Warning: Placeholder '{placeholder}' not found in template, falling back to content replacement")
-            return smart_content_replacement(source_path, dest_path, replacement_content)
-        
-        # Save the updated document
-        doc.save(str(dest_path))
-        return True
-        
-    except Exception as e:
-        print(f"Failed smart template replacement from {source_path} to {dest_path}: {str(e)}")
-        return False
-
-
-def multi_tag_template_replacement(source_path: Path, dest_path: Path, template_content: str, replacement_content: str) -> bool:
-    """
-    Replace multiple template tags in a document. Expects Claude to have already processed the template
-    and returned the complete document with all tags replaced.
-    
-    Args:
-        source_path: Path to template .docx file (not used since Claude handles all replacements)
-        dest_path: Path for new .docx file
-        template_content: Original template content (not used since Claude handles replacements)
-        replacement_content: Complete cover letter with all tags already replaced by Claude
-        
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        # Since Claude is handling all the template tag replacements,
-        # we just need to create a new document with the complete content
-        return write_docx_content(dest_path, replacement_content, preserve_formatting=True)
-        
-    except Exception as e:
-        print(f"Failed multi-tag template replacement: {str(e)}")
-        return False
-
 
 def tag_based_template_replacement(template_path: Path, dest_path: Path, tag_values: Dict[str, Any]) -> bool:
     """
@@ -251,6 +176,9 @@ def tag_based_template_replacement(template_path: Path, dest_path: Path, tag_val
         # Save the result
         template.save(dest_path)
         
+        # Note: Hyperlinks need to be created in the template file itself
+        # Current approach creates display text only
+        
         print(f"Successfully populated template using docxtpl: {dest_path}")
         print(f"Used tags: {list(mapped_values.keys())}")
         return True
@@ -272,15 +200,84 @@ def map_tag_values_to_template(tag_values: Dict[str, Any], template_path: Path) 
         # Create mapping based on template file name and content
         mapped_values = {}
         
-        # Handle resume template tags
-        if "Template" in template_path.name and ("Manager" in template_path.name or "Engineer" in template_path.name):
+        # Handle resume template tags - detect by Manager/Engineer in filename or Template keyword
+        if ("Manager" in template_path.name or "Engineer" in template_path.name) and "Interview Prep" not in template_path.name and "Cover Letter" not in template_path.name:
             # Resume template mappings
-            mapped_values['jobtitle'] = tag_values.get('jobtitle', 'Engineering Manager')
-            mapped_values['title'] = tag_values.get('jobtitle', 'Engineering Manager')  # Alternative name
+            # Get personal info from config
+            from backend.config_manager import config
+            personal_info = config.get('personal_info', {})
+            
+            # Handle personal information template tags using config values
+            mapped_values['name'] = tag_values.get('name', personal_info.get('name', 'John Doe'))
+            mapped_values['phone'] = tag_values.get('phone', personal_info.get('phone', '(555) 123-4567'))
+            mapped_values['email'] = tag_values.get('email', personal_info.get('email', 'john.doe@email.com'))
+            mapped_values['city_stabbr'] = tag_values.get('city_stabbr', personal_info.get('city_stabbr', 'City, ST'))
+            
+            # Social links - only replace if template tags exist, otherwise skip
+            template_content = read_docx_content(template_path)
+            if '{{linkedin}}' in template_content:
+                mapped_values['linkedin'] = tag_values.get('linkedin', 'LinkedIn')
+            if '{{otherlink1}}' in template_content:
+                mapped_values['otherlink1'] = tag_values.get('otherlink1', 'Github')  
+            if '{{otherlink2}}' in template_content:
+                mapped_values['otherlink2'] = tag_values.get('otherlink2', 'Substack')
+            
+            # Handle new template tag format from prompt_1_template
+            mapped_values['jobtitle'] = tag_values.get('role', tag_values.get('jobtitle', 'Engineering Manager'))
+            mapped_values['title'] = tag_values.get('role', tag_values.get('jobtitle', 'Engineering Manager'))  # Alternative name
             mapped_values['key_achievements'] = tag_values.get('key_achievements', '')  # Legacy
             mapped_values['key_achievements_list'] = tag_values.get('key_achievements_list', [])  # NEW: For Jinja loops
-            mapped_values['leadership_philosophy'] = tag_values.get('leadership_philosophy', '')
-            mapped_values['professional_summary'] = tag_values.get('professional_summary', '')
+            mapped_values['leadership_philosophy'] = tag_values.get('headline', tag_values.get('leadership_philosophy', ''))
+            mapped_values['professional_summary'] = tag_values.get('headline', tag_values.get('professional_summary', ''))
+            mapped_values['headline'] = tag_values.get('headline', '')  # Direct mapping for new format
+            
+            # Handle skills_section from new template format
+            skills_content = tag_values.get('skills_section', '')
+            if skills_content:
+                # Parse skills_section into individual categories for backward compatibility
+                lines = skills_content.strip().split('\n')
+                current_category = None
+                current_skills = ""
+                
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    # Check if this is a category header (no bullets)
+                    if not line.startswith('•') and not line.startswith('-') and line.isupper():
+                        # Save previous category if exists
+                        if current_category and current_skills:
+                            if 'LEADERSHIP' in current_category:
+                                mapped_values['leadership_heading'] = current_category
+                                mapped_values['leadership_skills'] = current_skills.strip()
+                            elif 'ENGINEERING' in current_category or 'ARCHITECTURE' in current_category:
+                                mapped_values['engineering_heading'] = current_category
+                                mapped_values['engineering_skills'] = current_skills.strip()
+                        # Start new category
+                        current_category = line
+                        current_skills = ""
+                    else:
+                        # This is skills content
+                        if current_skills:
+                            current_skills += " "
+                        current_skills += line.replace('•', '').replace('-', '').strip()
+                
+                # Save final category
+                if current_category and current_skills:
+                    if 'LEADERSHIP' in current_category:
+                        mapped_values['leadership_heading'] = current_category
+                        mapped_values['leadership_skills'] = current_skills.strip()
+                    elif 'ENGINEERING' in current_category or 'ARCHITECTURE' in current_category:
+                        mapped_values['engineering_heading'] = current_category
+                        mapped_values['engineering_skills'] = current_skills.strip()
+            
+            # Fallback to existing values if skills_section parsing didn't work
+            if 'leadership_heading' not in mapped_values:
+                mapped_values['leadership_heading'] = tag_values.get('leadership_heading', 'LEADERSHIP & MANAGEMENT')
+                mapped_values['leadership_skills'] = tag_values.get('leadership_skills', '')
+            if 'engineering_heading' not in mapped_values:
+                mapped_values['engineering_heading'] = tag_values.get('engineering_heading', 'ENGINEERING & ARCHITECTURE') 
+                mapped_values['engineering_skills'] = tag_values.get('engineering_skills', '')
             
             # NEW: Structured skill categories for Jinja loops
             mapped_values['skill_categories'] = tag_values.get('skill_categories', [])
@@ -291,41 +288,190 @@ def map_tag_values_to_template(tag_values: Dict[str, Any], template_path: Path) 
             mapped_values['enlace'] = tag_values.get('enlace', {'description': '', 'achievements': []})
             mapped_values['manta'] = tag_values.get('manta', {'description': '', 'achievements': []})
             
-            # Individual skill category tags (backward compatibility)
-            mapped_values['leadership_heading'] = tag_values.get('leadership_heading', 'LEADERSHIP & MANAGEMENT')
-            mapped_values['leadership_skills'] = tag_values.get('leadership_skills', '')
-            mapped_values['engineering_heading'] = tag_values.get('engineering_heading', 'ENGINEERING & ARCHITECTURE') 
-            mapped_values['engineering_skills'] = tag_values.get('engineering_skills', '')
-            
             # Legacy skill tags for backward compatibility
             mapped_values['skill_heading'] = tag_values.get('skill_heading', '')
             mapped_values['skills'] = tag_values.get('skills', '')
             
             mapped_values['education'] = tag_values.get('education', '')
             
-            # Company-specific mappings with alternative names
-            mapped_values['sureroledescription'] = tag_values.get('sureroledescription', '')
-            mapped_values['suredescription'] = tag_values.get('sureroledescription', '')  # Alternative
-            mapped_values['sureachievements'] = tag_values.get('sureachievements', '')
+            # Handle new experience_* template tags and map to existing company-specific tags
+            # Map experience_* tags to the old format that docx templates expect
+            _map_experience_tag(tag_values, mapped_values, 'experience_sure', 'sure')
+            _map_experience_tag(tag_values, mapped_values, 'experience_root', 'root') 
+            _map_experience_tag(tag_values, mapped_values, 'experience_enlace', 'enlace')
+            _map_experience_tag(tag_values, mapped_values, 'experience_manta', 'manta')
             
-            mapped_values['rootroledescription'] = tag_values.get('rootroledescription', '')
-            mapped_values['rootdescription'] = tag_values.get('rootroledescription', '')  # Alternative
-            mapped_values['rootachievements'] = tag_values.get('rootachievements', '')
+            # Handle key_achievements template tag - convert to list format for Jinja templates
+            if 'key_achievements' in tag_values:
+                achievements_content = tag_values['key_achievements']
+                achievements_list = []
+                for line in achievements_content.split('\n'):
+                    line = line.strip()
+                    if line and (line[0].isdigit() or line.startswith('•') or line.startswith('-')):
+                        # Remove numbering and bullet points
+                        clean_line = line
+                        if line[0].isdigit():
+                            clean_line = '. '.join(line.split('. ')[1:])  # Remove "1. " prefix
+                        elif line.startswith('•') or line.startswith('-'):
+                            clean_line = line[1:].strip()  # Remove bullet
+                        if clean_line:
+                            achievements_list.append(clean_line)
+                mapped_values['key_achievements_list'] = achievements_list
+                print(f"DEBUG: Mapped key_achievements to list with {len(achievements_list)} items")
             
-            mapped_values['enlaceroledescription'] = tag_values.get('enlaceroledescription', '')
-            mapped_values['enlacedescription'] = tag_values.get('enlaceroledescription', '')  # Alternative
-            mapped_values['enlaceachievements'] = tag_values.get('enlaceachievements', '')
+            # Handle skills_section template tag - parse into skill_categories array for Jinja templates
+            if 'skills_section' in tag_values:
+                skills_content = tag_values['skills_section']
+                skill_categories = []
+                current_heading = None
+                current_skills = None
+                
+                for line in skills_content.split('\n'):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Check if this line is a heading (all caps, no bullets)
+                    if line.isupper() and not line.startswith('•') and not line.startswith('-'):
+                        # Save previous category
+                        if current_heading and current_skills:
+                            skill_categories.append({
+                                'heading': current_heading,
+                                'content': current_skills
+                            })
+                        
+                        current_heading = line
+                        current_skills = None
+                    else:
+                        # This is skill content
+                        current_skills = line
+                
+                # Handle the last category
+                if current_heading and current_skills:
+                    skill_categories.append({
+                        'heading': current_heading,
+                        'content': current_skills
+                    })
+                
+                mapped_values['skill_categories'] = skill_categories
+                print(f"DEBUG: Created skill_categories array with {len(skill_categories)} categories")
             
-            mapped_values['mantaroledescription'] = tag_values.get('mantaroledescription', '')
-            mapped_values['mantadescription'] = tag_values.get('mantaroledescription', '')  # Alternative
-            mapped_values['mantaachievements'] = tag_values.get('mantaachievements', '')
+            # Handle jobtitle -> role mapping for resume template
+            if 'jobtitle' in tag_values:
+                mapped_values['role'] = tag_values['jobtitle']
+                print(f"DEBUG: Mapped jobtitle to role: {tag_values['jobtitle']}")
+            
+            # Old-style company mappings removed - template now uses new object structure (sure.achievements, etc.)
         
         # Handle cover letter template tags
         elif "Cover Letter" in template_path.name:
             # Cover letter template mappings
+            # Get personal info from config
+            from backend.config_manager import config
+            personal_info = config.get('personal_info', {})
+            
             mapped_values['company'] = tag_values.get('company', '')
             mapped_values['role'] = tag_values.get('role', '')
+            mapped_values['name'] = tag_values.get('name', personal_info.get('name', 'John Doe'))
             mapped_values['content'] = tag_values.get('content', '')
+            
+            # Add personal information using config values
+            mapped_values['phone'] = tag_values.get('phone', personal_info.get('phone', '(555) 123-4567'))
+            mapped_values['email'] = tag_values.get('email', personal_info.get('email', 'john.doe@email.com'))
+            mapped_values['city_stabbr'] = tag_values.get('city_stabbr', personal_info.get('city_stabbr', 'City, ST'))
+            mapped_values['linkedin'] = tag_values.get('linkedin', personal_info.get('linkedin', 'LinkedIn'))
+            mapped_values['otherlink1'] = tag_values.get('otherlink1', personal_info.get('github', 'Github'))
+            mapped_values['otherlink2'] = tag_values.get('otherlink2', personal_info.get('substack', 'Substack'))
+        
+        # Handle interview prep template tags
+        elif "Interview Prep" in template_path.name:
+            # Interview prep template mappings
+            mapped_values['company'] = tag_values.get('company', '')
+            mapped_values['jobtitle'] = tag_values.get('jobtitle', tag_values.get('role', 'Engineering Manager'))
+            mapped_values['role'] = tag_values.get('jobtitle', tag_values.get('role', 'Engineering Manager'))
+            mapped_values['core_narrative'] = tag_values.get('core_narrative', '')
+            mapped_values['closing_positioning'] = tag_values.get('closing_positioning', '')
+            
+            # Handle interview prep sections - convert to correct list names for Jinja templates
+            interview_prep_mapping = {
+                'proof_points': 'proof_list',           # Template expects proof_list
+                'potential_concerns': 'concern_list',   # Template expects concern_list  
+                'cultural_alignment': 'culture_list'    # Template expects culture_list
+            }
+            
+            for claude_name, template_name in interview_prep_mapping.items():
+                if claude_name in tag_values:
+                    section_content = tag_values[claude_name]
+                    section_list = []
+                    
+                    # Parse numbered items with headers and content (handle markdown formatting)
+                    lines = section_content.split('\n')
+                    i = 0
+                    while i < len(lines):
+                        line = lines[i].strip()
+                        if not line:
+                            i += 1
+                            continue
+                            
+                        if line and line[0].isdigit() and '. ' in line:
+                            # This is a numbered item - extract header
+                            header_line = line.split('. ', 1)[1].strip()
+                            # Remove markdown formatting if present
+                            header = header_line.replace('**', '').replace('*', '')
+                            if header.startswith('Header: '):
+                                header = header[8:]  # Remove "Header: " prefix
+                            
+                            # Look for the content on the next line(s)
+                            content = ""
+                            i += 1
+                            while i < len(lines):
+                                next_line = lines[i].strip()
+                                if next_line and (next_line[0].isdigit() or next_line.startswith('{{') or not next_line):
+                                    break
+                                    
+                                # Remove markdown formatting and "Content:" prefix
+                                clean_line = next_line.replace('**', '').replace('*', '')
+                                if clean_line.startswith('Content: '):
+                                    clean_line = clean_line[9:]  # Remove "Content: " prefix
+                                elif clean_line.startswith('**Content**:'):
+                                    clean_line = clean_line[12:]  # Remove markdown content prefix
+                                elif clean_line.startswith('Content:'):
+                                    clean_line = clean_line[8:]  # Remove content prefix
+                                
+                                if content:
+                                    content += ' ' + clean_line
+                                else:
+                                    content = clean_line
+                                i += 1
+                            
+                            if header and content:
+                                section_list.append({'header': header, 'content': content})
+                            i -= 1  # Back up one since we'll increment at the end of the loop
+                        
+                        i += 1
+                    
+                    mapped_values[template_name] = section_list
+                    print(f"DEBUG: Mapped {claude_name} to {template_name} with {len(section_list)} items")
+            
+            # Handle strategic_questions - convert to simple list
+            if 'strategic_questions' in tag_values:
+                questions_content = tag_values['strategic_questions']
+                questions_list = []
+                
+                for line in questions_content.split('\n'):
+                    line = line.strip()
+                    if line and (line[0].isdigit() or line.startswith('•') or line.startswith('-')):
+                        # Remove numbering and bullets
+                        clean_line = line
+                        if line[0].isdigit():
+                            clean_line = '. '.join(line.split('. ')[1:])  # Remove "1. " prefix
+                        elif line.startswith('•') or line.startswith('-'):
+                            clean_line = line[1:].strip()  # Remove bullet
+                        if clean_line:
+                            questions_list.append(clean_line)
+                
+                mapped_values['strategic_questions_list'] = questions_list
+                print(f"DEBUG: Mapped strategic_questions to list with {len(questions_list)} items")
         
         # Add any other tags that weren't mapped
         for key, value in tag_values.items():
@@ -360,6 +506,12 @@ def parse_claude_response_for_tags(claude_response: str, baseline_content: str) 
         # Try template tag format (for new cover letter format)
         template_tags = extract_template_tags(claude_response)
         if template_tags:
+            # Merge baseline content (personal info) with template tags
+            baseline_tags = extract_template_tags(baseline_content)
+            if baseline_tags:
+                template_tags.update(baseline_tags)
+                print(f"Merged {len(baseline_tags)} baseline tags with {len(template_tags) - len(baseline_tags)} template tags")
+            
             print(f"Successfully parsed template tags with {len(template_tags)} tags")
             return template_tags
         
@@ -370,6 +522,9 @@ def parse_claude_response_for_tags(claude_response: str, baseline_content: str) 
         skills_section = extract_section(claude_response, 'Skills', 'Professional Experience')
         skill_categories_list = extract_skill_categories_for_jinja(skills_section)
         skill_categories_dict = extract_individual_skill_categories(skills_section)
+        
+        # Extract personal information for tokenization
+        personal_info = extract_personal_info(baseline_content)
         
         # Extract structured job experience data for each company
         sure_job = extract_company_job_experience(claude_response, 'SURE')
@@ -422,6 +577,15 @@ def parse_claude_response_for_tags(claude_response: str, baseline_content: str) 
                 print("Extracted headline content from first section after contact info")
         
         tag_values = {
+            # Personal information tokens for generic templates
+            'name': personal_info.get('name', 'John Doe'),
+            'phone': personal_info.get('phone', '(555) 123-4567'),
+            'email': personal_info.get('email', 'john.doe@email.com'),
+            'city_stabbr': personal_info.get('city_stabbr', 'City, ST'),
+            'linkedin': personal_info.get('linkedin', 'LinkedIn'),
+            'otherlink1': personal_info.get('otherlink1', 'Github'),
+            'otherlink2': personal_info.get('otherlink2', 'Portfolio'),
+            
             'jobtitle': 'Engineering Manager',
             'key_achievements': extract_section(claude_response, 'Key Achievements', 'Skills'),  # Legacy
             'key_achievements_list': key_achievements_list,  # NEW: Structured list for Jinja loops
@@ -436,15 +600,7 @@ def parse_claude_response_for_tags(claude_response: str, baseline_content: str) 
             'enlace': enlace_job,
             'manta': manta_job,
             
-            # Legacy individual tags for backward compatibility
-            'sureroledescription': sure_job['description'],
-            'sureachievements': extract_company_achievements(claude_response, 'SURE'),
-            'rootroledescription': root_job['description'],
-            'rootachievements': extract_company_achievements(claude_response, 'ROOT'),
-            'enlaceroledescription': enlace_job['description'],
-            'enlaceachievements': extract_company_achievements(claude_response, 'ENLACE'),
-            'mantaroledescription': manta_job['description'],
-            'mantaachievements': extract_company_achievements(claude_response, 'MANTA')
+            # Legacy individual tags removed - template uses new object structure (sure.achievements, etc.)
         }
         
         # Add individual skill category tags for backward compatibility
@@ -482,12 +638,12 @@ def extract_template_tags(claude_response: str) -> Dict[str, str]:
                     cleaned_content = cleaned_content[1:-1].strip()
                 tag_values[tag_name] = cleaned_content
         else:
-            # Fallback to single braces if no double braces found
+            # Fallback to single braces if no double braces found (LEGACY SUPPORT - should be phased out)
             single_brace_pattern = r'\{(\w+)\}\s*\n(.*?)(?=\{\w+\}|\Z)'
             matches = re.findall(single_brace_pattern, claude_response, re.DOTALL)
             
             if matches:
-                print(f"DEBUG: Found {len(matches)} single-brace template tags (fallback)")
+                print(f"WARNING: Found {len(matches)} single-brace template tags (legacy format - please update prompts to use double braces)")
                 for tag_name, tag_content in matches:
                     # Clean up the content (remove brackets if present, strip whitespace)
                     cleaned_content = tag_content.strip()
@@ -532,16 +688,13 @@ def parse_interview_prep_response(claude_response: str) -> Dict[str, Any]:
             proof_text = proof_section.group(1).strip()
             proof_list = []
             
-            # Parse numbered items with headers and content
-            proof_items = re.findall(r'(\d+\.\s*\[Header:[^\]]+\]\s*\n\[Content:[^\]]+\])', proof_text, re.DOTALL)
-            for item in proof_items:
-                header_match = re.search(r'Header:\s*([^\]]+)', item)
-                content_match = re.search(r'Content:\s*([^\]]+)', item)
-                if header_match and content_match:
-                    proof_list.append({
-                        'header': header_match.group(1).strip(),
-                        'content': content_match.group(1).strip()
-                    })
+            # Parse numbered items in the natural format Claude provides
+            proof_items = re.findall(r'(\d+\.\s+([^\n]+)\n(.*?)(?=\d+\.|$))', proof_text, re.DOTALL)
+            for full_match, header, content in proof_items:
+                proof_list.append({
+                    'header': header.strip(),
+                    'content': content.strip()
+                })
             
             tag_values['proof_list'] = proof_list
         
@@ -551,15 +704,12 @@ def parse_interview_prep_response(claude_response: str) -> Dict[str, Any]:
             concerns_text = concerns_section.group(1).strip()
             concern_list = []
             
-            concern_items = re.findall(r'(\d+\.\s*\[Header:[^\]]+\]\s*\n\[Content:[^\]]+\])', concerns_text, re.DOTALL)
-            for item in concern_items:
-                header_match = re.search(r'Header:\s*([^\]]+)', item)
-                content_match = re.search(r'Content:\s*([^\]]+)', item)
-                if header_match and content_match:
-                    concern_list.append({
-                        'header': header_match.group(1).strip(),
-                        'content': content_match.group(1).strip()
-                    })
+            concern_items = re.findall(r'(\d+\.\s+([^\n]+)\n(.*?)(?=\d+\.|$))', concerns_text, re.DOTALL)
+            for full_match, header, content in concern_items:
+                concern_list.append({
+                    'header': header.strip(),
+                    'content': content.strip()
+                })
             
             tag_values['concern_list'] = concern_list
         
@@ -569,15 +719,12 @@ def parse_interview_prep_response(claude_response: str) -> Dict[str, Any]:
             culture_text = culture_section.group(1).strip()
             culture_list = []
             
-            culture_items = re.findall(r'(\d+\.\s*\[Header:[^\]]+\]\s*\n\[Content:[^\]]+\])', culture_text, re.DOTALL)
-            for item in culture_items:
-                header_match = re.search(r'Header:\s*([^\]]+)', item)
-                content_match = re.search(r'Content:\s*([^\]]+)', item)
-                if header_match and content_match:
-                    culture_list.append({
-                        'header': header_match.group(1).strip(),
-                        'content': content_match.group(1).strip()
-                    })
+            culture_items = re.findall(r'(\d+\.\s+([^\n]+)\n(.*?)(?=\d+\.|$))', culture_text, re.DOTALL)
+            for full_match, header, content in culture_items:
+                culture_list.append({
+                    'header': header.strip(),
+                    'content': content.strip()
+                })
             
             tag_values['culture_list'] = culture_list
         
@@ -835,10 +982,16 @@ def extract_company_job_experience(text: str, company_name: str) -> dict:
         if achievements_text:
             for line in achievements_text.split('\n'):
                 line = line.strip()
-                if line.startswith('•'):
-                    # Remove the bullet symbol and any leading whitespace
-                    clean_line = line[1:].strip()  # Remove '•' and trim spaces
-                    achievements_list.append(clean_line)
+                if line:
+                    # Remove bullet symbols if present
+                    clean_line = line
+                    if line.startswith('•'):
+                        clean_line = line[1:].strip()  # Remove '•' and trim spaces
+                    elif line.startswith('-'):
+                        clean_line = line[1:].strip()  # Remove '-' and trim spaces
+                    
+                    if clean_line:
+                        achievements_list.append(clean_line)
         
         result = {
             'description': description,
@@ -876,11 +1029,12 @@ def extract_company_achievements(text: str, company_name: str) -> str:
         absolute_pos = prof_exp_pos + company_pos
         print(f"DEBUG: Extracting achievements for {company_name} at position {absolute_pos}")
         
-        # Find bullets that come after this company but before the next company
+        # Find achievements that come after this company but before the next company
         section = text[absolute_pos:absolute_pos + 1000]  # Look ahead 1000 chars
         lines = section.split('\n')
-        bullets = []
+        achievements = []
         found_company_line = False
+        found_description = False
         
         for line in lines:
             line = line.strip()
@@ -890,15 +1044,24 @@ def extract_company_achievements(text: str, company_name: str) -> str:
                     found_company_line = True
                 continue
             
-            if line.startswith('•'):
-                bullets.append(line)
+            if line.startswith('•') or line.startswith('-'):
+                # This is clearly a bulleted achievement
+                achievements.append(line)
                 print(f"DEBUG: Found bullet for {company_name}: {line}")
+            elif line and not found_description and not line.upper().startswith(('ROOT', 'SURE', 'ENLACE', 'MANTA')) and 'Education' not in line:
+                # This might be the role description - skip it
+                found_description = True
+                print(f"DEBUG: Skipping description line for {company_name}: {line}")
+            elif line and found_description and not line.upper().startswith(('ROOT', 'SURE', 'ENLACE', 'MANTA')) and 'Education' not in line:
+                # After description, non-bullet lines might be achievements (if prompts removed bullets)
+                achievements.append(line)
+                print(f"DEBUG: Found non-bullet achievement for {company_name}: {line}")
             elif line and (line.upper().startswith(('ROOT', 'SURE', 'ENLACE', 'MANTA')) or 'Education' in line):
                 # Stop when we hit the next company or education section
                 break
         
-        result = '\n'.join(bullets)
-        print(f"DEBUG: Final achievements for {company_name}: Found {len(bullets)} bullets")
+        result = '\n'.join(achievements)
+        print(f"DEBUG: Final achievements for {company_name}: Found {len(achievements)} achievements")
         return result
     except Exception as e:
         print(f"DEBUG: Error extracting achievements for {company_name}: {str(e)}")
@@ -1015,6 +1178,106 @@ def find_template_and_baseline_files(templates_folder: Path, baseline_resume_nam
     except Exception as e:
         print(f"Error finding template and baseline files: {str(e)}")
         return None, None
+
+
+def extract_personal_info(baseline_content: str) -> dict:
+    """
+    Extract personal information from the baseline resume for tokenization.
+    Makes templates generic by extracting name, contact info, etc.
+    """
+    try:
+        import re
+        
+        personal_info = {
+            'name': 'John Doe',
+            'phone': '(555) 123-4567',
+            'email': 'john.doe@email.com',
+            'city_stabbr': 'City, ST',
+            'linkedin': 'LinkedIn',
+            'otherlink1': 'Github',
+            'otherlink2': 'Portfolio'
+        }
+        
+        lines = baseline_content.strip().split('\n')
+        
+        # Extract name (usually first non-empty line)
+        for line in lines:
+            line = line.strip()
+            if line and not line.startswith('•') and not line.startswith('-'):
+                # Check if this looks like a name (2-3 words, first letters capitalized)
+                words = line.split()
+                if len(words) >= 2 and len(words) <= 3:
+                    if all(word[0].isupper() for word in words if word):
+                        personal_info['name'] = line
+                        print(f"Extracted name: {line}")
+                        break
+        
+        # Extract phone number
+        phone_pattern = r'(\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4})'
+        phone_match = re.search(phone_pattern, baseline_content)
+        if phone_match:
+            personal_info['phone'] = phone_match.group(1)
+            print(f"Extracted phone: {phone_match.group(1)}")
+        
+        # Extract email
+        email_pattern = r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'
+        email_match = re.search(email_pattern, baseline_content)
+        if email_match:
+            personal_info['email'] = email_match.group(1)
+            print(f"Extracted email: {email_match.group(1)}")
+        
+        # Extract city, state - look for pattern like "Columbus, OH" or "City, State"
+        city_state_pattern = r'([A-Za-z\s]+),\s*([A-Z]{2})\b'
+        city_state_match = re.search(city_state_pattern, baseline_content)
+        if city_state_match:
+            city = city_state_match.group(1).strip()
+            state = city_state_match.group(2)
+            personal_info['city_stabbr'] = f"{city}, {state}"
+            print(f"Extracted city/state: {city}, {state}")
+        
+        # Extract LinkedIn - look for "LinkedIn" text or linkedin.com URLs
+        if 'LinkedIn' in baseline_content:
+            personal_info['linkedin'] = 'LinkedIn'
+            print("Found LinkedIn reference")
+        linkedin_url_pattern = r'(https?://(?:www\.)?linkedin\.com/[\w\-/]+)'
+        linkedin_match = re.search(linkedin_url_pattern, baseline_content)
+        if linkedin_match:
+            personal_info['linkedin'] = linkedin_match.group(1)
+            print(f"Extracted LinkedIn URL: {linkedin_match.group(1)}")
+        
+        # Extract Github - look for "Github" text or github.com URLs
+        if 'Github' in baseline_content:
+            personal_info['otherlink1'] = 'Github'
+            print("Found Github reference")
+        github_url_pattern = r'(https?://(?:www\.)?github\.com/[\w\-/]+)'
+        github_match = re.search(github_url_pattern, baseline_content)
+        if github_match:
+            personal_info['otherlink1'] = github_match.group(1)
+            print(f"Extracted Github URL: {github_match.group(1)}")
+        
+        # Extract Substack - look for "Substack" text or substack.com URLs  
+        if 'Substack' in baseline_content:
+            personal_info['otherlink2'] = 'Substack'
+            print("Found Substack reference")
+        substack_url_pattern = r'(https?://[\w\-]+\.substack\.com)'
+        substack_match = re.search(substack_url_pattern, baseline_content)
+        if substack_match:
+            personal_info['otherlink2'] = substack_match.group(1)
+            print(f"Extracted Substack URL: {substack_match.group(1)}")
+        
+        return personal_info
+        
+    except Exception as e:
+        print(f"Error extracting personal info: {str(e)}")
+        return {
+            'name': 'John Doe',
+            'phone': '(555) 123-4567', 
+            'email': 'john.doe@email.com',
+            'city_stabbr': 'City, ST',
+            'linkedin': 'LinkedIn',
+            'otherlink1': 'Github',
+            'otherlink2': 'Portfolio'
+        }
 
 
 def read_content_file(file_path: Path) -> str:
@@ -1179,3 +1442,105 @@ def smart_content_replacement(source_path: Path, dest_path: Path, new_content: s
     except Exception as e:
         print(f"Failed smart content replacement from {source_path} to {dest_path}: {str(e)}")
         return False
+
+
+def _map_experience_tag(tag_values: dict, mapped_values: dict, experience_key: str, company: str) -> None:
+    """
+    Helper function to map experience_* tags to the old format that docx templates expect.
+    
+    Args:
+        tag_values: Dictionary containing raw tag values from Claude
+        mapped_values: Dictionary to populate with mapped values for template
+        experience_key: Key like 'experience_sure', 'experience_root', etc.
+        company: Company short name like 'sure', 'root', etc.
+    """
+    try:
+        content = tag_values.get(experience_key, '')
+        if not content:
+            return
+            
+        lines = content.strip().split('\n')
+        description_lines = []
+        achievement_lines = []
+        
+        # Track if we're still in the description (before first achievement)
+        found_first_achievement = False
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Check if this line is an achievement (starts with bullet OR looks like an achievement)
+            if line.startswith('•') or line.startswith('-'):
+                # This is clearly a bulleted achievement
+                found_first_achievement = True
+                # Remove the bullet symbol for clean achievements array
+                clean_achievement = line[1:].strip()  # Remove '•' or '-' and trim
+                achievement_lines.append(clean_achievement)
+            elif found_first_achievement:
+                # After we've seen the first achievement, all subsequent non-empty lines are achievements
+                # (since prompts no longer use bullets, achievements are just plain lines after description)
+                achievement_lines.append(line)
+            elif not found_first_achievement:
+                # This is part of the role description (comes before achievements)
+                description_lines.append(line)
+        
+        # Handle case where no bullets were found - split by heuristic
+        if not found_first_achievement and len(lines) > 1:
+            # Assume first 1-2 lines are description, rest are achievements
+            # Look for a natural break (empty line) or assume first line is description
+            potential_desc_lines = []
+            potential_achievement_lines = []
+            
+            for i, line in enumerate(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                # First 1-2 sentences likely description, rest are achievements
+                if i < 2 and not any(keyword in line.lower() for keyword in ['led', 'managed', 'built', 'implemented', 'architected', 'scaled', 'delivered']):
+                    potential_desc_lines.append(line)
+                elif len(line) > 30 and (i < 2 or len(potential_desc_lines) == 0):
+                    # Long lines early on are likely description
+                    potential_desc_lines.append(line)
+                else:
+                    # Shorter lines or later lines are likely achievements
+                    potential_achievement_lines.append(line)
+            
+            # If we couldn't split intelligently, put everything in description
+            if potential_achievement_lines:
+                description_lines = potential_desc_lines
+                achievement_lines = potential_achievement_lines
+            else:
+                description_lines = lines
+                achievement_lines = []
+        
+        # Clean up achievements - remove any remaining bullet symbols
+        achievements_array = []
+        for line in achievement_lines:
+            clean_line = line.strip()
+            if clean_line.startswith('•'):
+                clean_line = clean_line[1:].strip()
+            elif clean_line.startswith('-'):
+                clean_line = clean_line[1:].strip()
+            if clean_line:
+                achievements_array.append(clean_line)
+        
+        mapped_values[company] = {
+            'description': '\n'.join(description_lines),
+            'achievements': achievements_array
+        }
+        
+        # Also keep old-style mappings for backward compatibility
+        mapped_values[f'{company}roledescription'] = '\n'.join(description_lines)
+        mapped_values[f'{company}description'] = '\n'.join(description_lines)  
+        mapped_values[f'{company}achievements'] = '\n'.join([f'• {line}' for line in achievements_array])  # Add bullets back for legacy
+        
+        print(f"DEBUG: Mapped {experience_key} -> {company} object (desc: {len(description_lines)} lines, achievements: {len(achievements_array)} items)")
+        if achievements_array:
+            print(f"DEBUG: {company}.achievements: {achievements_array[:2]}...")  # Show first 2 achievements
+        
+    except Exception as e:
+        print(f"ERROR: Failed to map experience tag {experience_key}: {str(e)}")
+        return
