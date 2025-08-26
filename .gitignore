@@ -23,7 +23,6 @@ credentials.json
 *.log
 
 # Personal templates and outputs
-templates/
 output/
 resume-automation-system/
 

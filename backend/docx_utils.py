@@ -203,15 +203,25 @@ def map_tag_values_to_template(tag_values: Dict[str, Any], template_path: Path) 
         # Handle resume template tags - detect by Manager/Engineer in filename or Template keyword
         if ("Manager" in template_path.name or "Engineer" in template_path.name) and "Interview Prep" not in template_path.name and "Cover Letter" not in template_path.name:
             # Resume template mappings
-            # Get personal info from config
+            # Get personal info and company experience from config
             from backend.config_manager import config
             personal_info = config.get('personal_info', {})
+            company_experience = config.get('company_experience', {})
             
             # Handle personal information template tags using config values
             mapped_values['name'] = tag_values.get('name', personal_info.get('name', 'John Doe'))
             mapped_values['phone'] = tag_values.get('phone', personal_info.get('phone', '(555) 123-4567'))
             mapped_values['email'] = tag_values.get('email', personal_info.get('email', 'john.doe@email.com'))
             mapped_values['city_stabbr'] = tag_values.get('city_stabbr', personal_info.get('city_stabbr', 'City, ST'))
+            
+            # Add company experience information for template variables
+            for company_key, company_data in company_experience.items():
+                # Map all company data fields directly for template replacement
+                for field, value in company_data.items():
+                    template_var = f"{company_key}_{field}"
+                    mapped_values[template_var] = value
+                
+                print(f"DEBUG: Added company template variables for {company_key}: {list(company_data.keys())}")
             
             # Social links - only replace if template tags exist, otherwise skip
             template_content = read_docx_content(template_path)
@@ -282,11 +292,11 @@ def map_tag_values_to_template(tag_values: Dict[str, Any], template_path: Path) 
             # NEW: Structured skill categories for Jinja loops
             mapped_values['skill_categories'] = tag_values.get('skill_categories', [])
             
-            # NEW: Structured job experience objects for Jinja loops
-            mapped_values['sure'] = tag_values.get('sure', {'description': '', 'achievements': []})
-            mapped_values['root'] = tag_values.get('root', {'description': '', 'achievements': []})
-            mapped_values['enlace'] = tag_values.get('enlace', {'description': '', 'achievements': []})
-            mapped_values['manta'] = tag_values.get('manta', {'description': '', 'achievements': []})
+            # NEW: Structured job experience objects for Jinja loops - using company1, company2, etc.
+            mapped_values['company1'] = tag_values.get('sure', tag_values.get('company1', {'description': '', 'achievements': []}))
+            mapped_values['company2'] = tag_values.get('root', tag_values.get('company2', {'description': '', 'achievements': []}))
+            mapped_values['company3'] = tag_values.get('enlace', tag_values.get('company3', {'description': '', 'achievements': []}))
+            mapped_values['company4'] = tag_values.get('manta', tag_values.get('company4', {'description': '', 'achievements': []}))
             
             # Legacy skill tags for backward compatibility
             mapped_values['skill_heading'] = tag_values.get('skill_heading', '')
@@ -294,12 +304,11 @@ def map_tag_values_to_template(tag_values: Dict[str, Any], template_path: Path) 
             
             mapped_values['education'] = tag_values.get('education', '')
             
-            # Handle new experience_* template tags and map to existing company-specific tags
-            # Map experience_* tags to the old format that docx templates expect
-            _map_experience_tag(tag_values, mapped_values, 'experience_sure', 'sure')
-            _map_experience_tag(tag_values, mapped_values, 'experience_root', 'root') 
-            _map_experience_tag(tag_values, mapped_values, 'experience_enlace', 'enlace')
-            _map_experience_tag(tag_values, mapped_values, 'experience_manta', 'manta')
+            # Handle new experience_* template tags and map to company1, company2, etc.
+            _map_experience_tag(tag_values, mapped_values, 'experience_sure', 'company1')
+            _map_experience_tag(tag_values, mapped_values, 'experience_root', 'company2') 
+            _map_experience_tag(tag_values, mapped_values, 'experience_enlace', 'company3')
+            _map_experience_tag(tag_values, mapped_values, 'experience_manta', 'company4')
             
             # Handle key_achievements template tag - convert to list format for Jinja templates
             if 'key_achievements' in tag_values:
@@ -527,10 +536,10 @@ def parse_claude_response_for_tags(claude_response: str, baseline_content: str) 
         personal_info = extract_personal_info(baseline_content)
         
         # Extract structured job experience data for each company
-        sure_job = extract_company_job_experience(claude_response, 'SURE')
-        root_job = extract_company_job_experience(claude_response, 'ROOT')
-        enlace_job = extract_company_job_experience(claude_response, 'ENLACE')
-        manta_job = extract_company_job_experience(claude_response, 'MANTA')
+        company1_job = extract_company_job_experience(claude_response, 'SURE')
+        company2_job = extract_company_job_experience(claude_response, 'ROOT')
+        company3_job = extract_company_job_experience(claude_response, 'ENLACE')
+        company4_job = extract_company_job_experience(claude_response, 'MANTA')
         
         # Extract structured key achievements
         key_achievements_list = extract_key_achievements_list(claude_response)
@@ -594,11 +603,11 @@ def parse_claude_response_for_tags(claude_response: str, baseline_content: str) 
             'skill_categories': skill_categories_list,  # Structured list for Jinja loops
             'education': extract_section(claude_response, 'Education', ''),
             
-            # NEW: Structured job experience objects for Jinja loops
-            'sure': sure_job,
-            'root': root_job, 
-            'enlace': enlace_job,
-            'manta': manta_job,
+            # NEW: Structured job experience objects for Jinja loops - using company1, company2, etc.
+            'company1': company1_job,
+            'company2': company2_job, 
+            'company3': company3_job,
+            'company4': company4_job,
             
             # Legacy individual tags removed - template uses new object structure (sure.achievements, etc.)
         }
@@ -1532,7 +1541,7 @@ def _map_experience_tag(tag_values: dict, mapped_values: dict, experience_key: s
             'achievements': achievements_array
         }
         
-        # Also keep old-style mappings for backward compatibility
+        # Also keep old-style mappings for backward compatibility (company1, company2, etc.)
         mapped_values[f'{company}roledescription'] = '\n'.join(description_lines)
         mapped_values[f'{company}description'] = '\n'.join(description_lines)  
         mapped_values[f'{company}achievements'] = '\n'.join([f'• {line}' for line in achievements_array])  # Add bullets back for legacy
