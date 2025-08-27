@@ -7,7 +7,7 @@ An AI-powered resume generation system that creates tailored resumes, cover lett
 - 🤖 AI-powered resume optimization using Claude AI
 - 📄 Automated cover letter generation
 - 🎯 Automated Interview preparation notes
-- 📁 Google Drive integration for file organization via API or Drive for Mac/Windows
+- 📁 Google Drive integration via Google Drive sync folder (requires Google Drive for Mac/Windows)
 - 🔄 Template-based document generation
 - 📊 Application tracking with Excel integration
 - 🌐 Web interface for easy use
@@ -15,9 +15,7 @@ An AI-powered resume generation system that creates tailored resumes, cover lett
 ## Prerequisites
 
 - Python 3.9+
-- Either 
-  - Google Drive for Mac/Windows
-  - Google Drive API enabled
+- Google Drive for Mac/Windows installed and syncing
 - Anthropic Claude API access
 - Existing Resume content
 
@@ -28,7 +26,7 @@ An AI-powered resume generation system that creates tailored resumes, cover lett
 ```bash
 git clone <your-repo-url>
 cd resume-automation
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
 ### 2. Environment Configuration
@@ -46,10 +44,7 @@ ANTHROPIC_API_KEY=your_api_key_here
 
 ### 3. Google Drive Setup
 
-1. Create a Google Cloud Project and enable the Drive API
-2. Create a Service Account and download the JSON credentials
-3. Save the credentials as `service_account.json` in the project root
-4. Share your Google Drive folders with the service account email
+The system uses your local Google Drive sync folder (requires Google Drive for Mac/Windows to be installed and syncing).
 
 ### 4. Configuration
 
@@ -59,9 +54,7 @@ ANTHROPIC_API_KEY=your_api_key_here
    ```
 
 2. Edit `config.yaml` and update:
-   - `google_drive.templates_folder_id`: Your Google Drive templates folder ID
-   - `google_drive.output_folder_id`: Your Google Drive output folder ID
-   - `file_organization.drive_for_mac_root`: Your Google Drive sync path
+   - `file_organization.drive_for_mac_root`: Your Google Drive sync path (e.g., `/Users/yourname/Library/CloudStorage/GoogleDrive-your.email@gmail.com/My Drive`)
    - `user` section: Your personal information
 
 ### 5. Prompts Configuration
@@ -104,12 +97,29 @@ resume-automation-system/
 ### Start the Server
 
 ```bash
-python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+npm run dev
+# or alternatively:
+uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+This will start the FastAPI server with hot-reload enabled on http://localhost:8000
 
 ### Web Interface
 
 Open http://localhost:8000/static/index.html in your browser to access the web interface.
+
+### Alternative Start Commands
+
+```bash
+# Using npm (recommended)
+npm run dev
+
+# Using uv directly
+uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+
+# For production
+uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
 
 ## Configuration Options
 
@@ -124,13 +134,30 @@ Available templates in `config.yaml`:
 - `lead_data_engineer`: Lead Data Engineer
 - `data_engineer`: Data Engineer
 
+### Template Format
+
+Your .docx templates should use Jinja2 template tags that can be replaced:
+
+```
+{{name}}
+{{email}}
+{{phone}}
+{{linkedin}}
+{{jobtitle}}
+{{company}}
+{{content}}
+{{key_achievements_list}}
+{{skill_categories}}
+```
+
+The system uses DocxTpl to replace these template tags with actual values during processing.
+
 ### Prompt Configuration
 
-The system uses 4 prompts:
+The system uses 3 prompts:
 1. **Prompt 1**: Resume optimization
-2. **Prompt 2**: Resume refinement (optional)
-3. **Prompt 3**: Cover letter generation
-4. **Prompt 4**: Interview prep notes
+2. **Prompt 2**: Cover letter generation
+3. **Prompt 3**: Interview prep notes
 
 ## Security Notes
 
@@ -138,6 +165,10 @@ The system uses 4 prompts:
 - Never commit `config.yaml` or `prompts.yaml` files
 - Use environment variables for sensitive configuration
 - Regularly rotate API keys and service account credentials
+- Keep `service_account.json` secure and never commit to version control
+- Service account has full access to shared folders only
+- Consider using folder-level permissions rather than drive-wide access
+- Regularly rotate service account keys if needed
 
 ## Troubleshooting
 
@@ -147,12 +178,36 @@ The system uses 4 prompts:
 2. **Google Drive authentication errors**: Verify service account permissions
 3. **API rate limits**: Adjust `system.rate_limit_delay` in config.yaml
 4. **Template parsing errors**: Ensure template files have correct format
+5. **"Service account file not found"**: Ensure `service_account.json` is in the project root and check file permissions
+6. **"Failed to connect to Google Drive"**: Verify APIs are enabled in Google Cloud Console, check service account has access to folders, and ensure folder IDs are correct
+7. **"Template not found"**: Verify template names in config.yaml match actual template files, check templates folder ID is correct
+8. **"Permission denied"**: Share folders with service account email and give Editor permissions (not just Viewer)
 
 ### Debugging
 
 Enable debug mode by setting environment variable:
 ```bash
 export DEBUG=true
+```
+
+#### Debug Commands
+
+```bash
+# Test the resume generation endpoint
+curl -X POST "http://localhost:8000/api/generate-resume" \
+  -H "Content-Type: application/json" \
+  -d '{"job_description": "test job", "motivation_notes": "test motivation", "resume_template": "engineering_manager", "company_name": "TestCorp", "position_title": "Test Role"}'
+```
+
+#### File Organization
+
+Files are created in your Google Drive sync folder and organized as:
+```
+[Your Google Drive]/resume-automation-system/ready-for-review/
+└── [Company Name] - [Position Title]/
+    ├── Resume - [Company] - [Position].docx
+    ├── Cover Letter - [Company] - [Position].docx
+    └── Interview Prep Notes - [Company].docx
 ```
 
 ## Contributing
