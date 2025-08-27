@@ -1,6 +1,14 @@
 # Resume Automation System
 
-An AI-powered resume generation system that creates tailored resumes, cover letters, and interview prep notes based on job descriptions.
+Transform your job application process with an AI-powered system that generates tailored resumes, cover letters, and interview prep notes in minutes, not hours.
+
+**🚀 20x Faster**: What used to take 60 minutes of back-and-forth with AI now happens in 3 minutes—from job posting to polished application materials.
+
+**⚡ Effortlessly Efficient**: Eliminates all the tedious busy work. No more manually updating trackers, organizing files, or copying company details. The system handles the operational overhead so you can focus on applying.
+
+**✨ Authentically You**: Your real experience, expertly optimized. The AI works from your existing resume content and uses carefully crafted prompts that virtually eliminate hallucinations—ensuring every achievement is genuinely yours, just perfectly tailored for each opportunity.
+
+Finally, you can tailor applications for every worthwhile job without worrying about the time investment or whether anyone will actually read your meticulously crafted materials.
 
 ## Features
 
