@@ -50,7 +50,7 @@ def extract_docx_text(file_content: bytes) -> str:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to extract text from DOCX: {str(e)}")
 
-app = FastAPI(title="Resume Automation API - Level 2")
+app = FastAPI(title="Resume Automation API")
 
 # Configure CORS
 app.add_middleware(
@@ -82,8 +82,8 @@ class ResumeRequest(BaseModel):
     resume_template: str
     resume_template_docx: str = ""  # Template for .docx formatting
     override_resume: str = ""  # Override resume content instead of baseline
-    company_name: str = ""  # For Level 2 Google Drive integration
-    position_title: str = ""  # For Level 2 Google Drive integration
+    company_name: str = ""  # For Google Drive integration
+    position_title: str = ""  # For Google Drive integration
     use_drive_integration: bool = False  # Enable/disable Drive features
     claude_model: str = "claude-sonnet-4-20250514"  # Default to Sonnet 4
     enabled_prompts: EnabledPrompts = EnabledPrompts()  # Prompt control settings
@@ -95,7 +95,7 @@ class ResumeResponse(BaseModel):
     resume_text: str
     cover_letter: str
     interview_prep: str
-    # Level 2 Google Drive fields
+    # Google Drive fields
     drive_results: Optional[dict] = None
     success: bool = True
     message: str = ""
@@ -982,7 +982,7 @@ This is an excellent opportunity to make a significant impact at {company_name}.
         response_data["claude_responses_folder"] = str(claude_responses_folder)
         response_data["message"] += f" | Claude responses saved to: {claude_responses_folder.name}"
     
-    # Level 2: Google Drive Integration - Create files in Drive sync folder
+    # Google Drive Integration - Create files in Drive sync folder
     if request.use_drive_integration and request.company_name and request.position_title:
         try:
             # Create files in Google Drive sync folder
@@ -1271,7 +1271,7 @@ async def parse_job_info(request: dict):
 async def root():
     """Serve the frontend"""
     return {
-        "message": "Resume Automation API - Level 2 is running",
+        "message": "Resume Automation API is running",
         "version": "2.0",
         "features": [
             "Fast-agent resume generation",

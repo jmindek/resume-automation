@@ -1,4 +1,4 @@
-// Resume Automation Frontend - Level 2
+// Resume Automation Frontend
 class ResumeAutomation {
     constructor() {
         this.form = document.getElementById('resumeForm');
