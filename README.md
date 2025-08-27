@@ -1,6 +1,14 @@
 # Resume Automation System
 
-An AI-powered resume generation system that creates tailored resumes, cover letters, and interview prep notes based on job descriptions.
+Transform your job application process with an AI-powered system that generates tailored resumes, cover letters, and interview prep notes in minutes, not hours.
+
+**🚀 20x Faster**: What used to take 60 minutes of back-and-forth with AI now happens in 3 minutes—from job posting to polished application materials.
+
+**⚡ Effortlessly Efficient**: Eliminates all the tedious busy work. No more manually updating trackers, organizing files, or copying company details. The system handles the operational overhead so you can focus on applying.
+
+**✨ Authentically You**: Your real experience, expertly optimized. The AI works from your existing resume content and uses carefully crafted prompts that virtually eliminate hallucinations—ensuring every achievement is genuinely yours, just perfectly tailored for each opportunity.
+
+Finally, you can tailor applications for every worthwhile job without worrying about the time investment or whether anyone will actually read your meticulously crafted materials.
 
 ## Features
 
@@ -74,25 +82,92 @@ The system uses your local Google Drive sync folder (requires Google Drive for M
    - `{company_name3},{company_3_date_range}`: Company name 3 and date range
    - `{company_name4},{company_4_date_range}`: Company name 4 and date range
 
-### 6. Google Drive Folder Structure
+### 6. Google Drive Folder Structure and Templates
 
+#### A. Create Folder Structure
 Create this folder structure in your Google Drive:
 
 ```
 resume-automation-system/
 ├── templates/
-│   ├── resumes/
+│   ├── resumes/              # Your baseline resume content files
 │   │   ├── Engineering Manager.docx
 │   │   ├── Senior Software Engineer.docx
-│   │   └── Data Engineering Manager.docx
-│   ├── Engineering Manager Template.docx
+│   │   ├── Data Engineering Manager.docx
+│   │   └── Senior Engineering Manager.docx
+│   ├── Engineering Manager Template.docx     # Output formatting templates
 │   ├── Cover Letter Template.docx
 │   └── Interview Prep Notes Template.docx
 └── ready-for-review/
     └── (generated resumes will appear here)
 ```
 
+#### B. Copy Templates from Repository
+**Important:** Copy all template files from this repository's `templates/` folder to your Google Drive `resume-automation-system/templates/` folder. These include:
+- All `.docx` template files for output formatting
+- Sample baseline resume files
+
+#### C. Create Your Baseline Resume Files
+In the `templates/resumes/` folder, create your baseline resume files. **The filenames must exactly match the template names in your `config.yaml`:**
+
+- If `config.yaml` lists `engineering_manager: "Engineering Manager"`, create `Engineering Manager.docx`
+- If `config.yaml` lists `senior_software_engineer: "Senior Software Engineer"`, create `Senior Software Engineer.docx`
+- And so on...
+
+These files contain your complete resume content that will be optimized for each specific job application.
+
 ## Usage
+
+### Daily Workflow - How to Apply for Jobs
+
+Here's the typical workflow for applying to jobs using this system:
+
+#### 1. Generate Resume Package
+1. **Find a job** you want to apply for
+2. **Copy the job posting URL** and paste it into the "Job Description URL" field
+3. **Review auto-detected information**:
+   - Company name (auto-scraped from URL)
+   - Role/position title (auto-detected from job description)
+   - Salary range (if available)
+   - Best-fit resume template (auto-selected based on job requirements)
+4. **Verify and correct** any auto-detected fields if needed
+5. **Add your motivation notes** explaining why you're interested in this role
+6. **Click "Generate Resume Package"**
+
+The system will create:
+- Tailored resume optimized for this specific job
+- Custom cover letter
+- Interview preparation notes
+
+#### 2. Review and Download from Google Drive
+1. **Navigate to your Google Drive** → `resume-automation-system/ready-for-review/[Company] - [Position]/`
+2. **Review the generated resume**:
+   - Ideally, make no changes or only trivial adjustments
+   - The content should be pre-optimized for the job
+3. **Review the generated cover letter**:
+   - Again, ideally minimal to no changes needed
+   - Should be tailored to the company and role
+4. **Download both files**:
+   - Save as DOCX for editing capability
+   - Save as PDF for final submission
+
+#### 3. Apply for the Job
+1. **Submit your application** through the company's normal process
+2. **Upload the generated resume** (PDF recommended)
+3. **Upload the generated cover letter** (PDF recommended)
+4. **Use the interview prep notes** to prepare for potential interviews
+
+#### 4. Track Your Application
+1. **Open the resume tracker** (Excel file in your Google Drive)
+2. **Find your job entry** - it should be pre-populated with:
+   - Company name
+   - Role/position title
+   - Job posting URL
+   - Salary range (if detected)
+3. **Update the "Applied" column** with today's date
+4. **Track follow-ups** and interview progress as they occur
+
+This workflow is designed to take a job application from discovery to submission in under 10 minutes, with most of that time spent on review rather than content creation.
 
 ### Start the Server
 
@@ -121,6 +196,26 @@ uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
+## Important Limitations and Considerations
+
+⚠️ **Version 1 Limitations - Please Read:**
+
+### Template Limitations
+- **Single output format**: There is only one type of output resume template. If you don't like the format, you'll need to create your own Jinja2 template or you may find this application unusable.
+- **Jinja2 knowledge helpful**: Users familiar with Jinja templating will find customization straightforward. Others may find template modification to be an insurmountable barrier.
+
+### Baseline Resume Recommendations
+- **Use baseline files**: While you technically don't need baseline resume files (you could paste content each time), this would dramatically slow you down and counteract one of the main goals of this application.
+- **Recommended**: Create and maintain your baseline resume files as described in the setup.
+
+### Configuration Customization
+- **4-job limit**: The output resume is configured to contain only 4 jobs by default. Modify `config.yaml` to increase or decrease this number.
+- **Customize everything**: Modify `config.yaml` to adjust:
+  - Number of achievements per job
+  - Prompt optimization for your specific situation
+  - Personal information and company details
+  - Template mappings and file names
+
 ## Configuration Options
 
 ### Resume Templates
@@ -133,6 +228,10 @@ Available templates in `config.yaml`:
 - `software_engineer`: Software Engineer
 - `lead_data_engineer`: Lead Data Engineer
 - `data_engineer`: Data Engineer
+
+**Important:** Your baseline resume files in `templates/resumes/` must be named exactly as shown in the right column above. For example:
+- `Engineering Manager.docx` (matches the `engineering_manager` template)
+- `Senior Software Engineer.docx` (matches the `senior_software_engineer` template)
 
 ### Template Format
 
