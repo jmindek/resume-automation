@@ -110,6 +110,57 @@ These files contain your complete resume content that will be optimized for each
 
 ## Usage
 
+### Daily Workflow - How to Apply for Jobs
+
+Here's the typical workflow for applying to jobs using this system:
+
+#### 1. Generate Resume Package
+1. **Find a job** you want to apply for
+2. **Copy the job posting URL** and paste it into the "Job Description URL" field
+3. **Review auto-detected information**:
+   - Company name (auto-scraped from URL)
+   - Role/position title (auto-detected from job description)
+   - Salary range (if available)
+   - Best-fit resume template (auto-selected based on job requirements)
+4. **Verify and correct** any auto-detected fields if needed
+5. **Add your motivation notes** explaining why you're interested in this role
+6. **Click "Generate Resume Package"**
+
+The system will create:
+- Tailored resume optimized for this specific job
+- Custom cover letter
+- Interview preparation notes
+
+#### 2. Review and Download from Google Drive
+1. **Navigate to your Google Drive** → `resume-automation-system/ready-for-review/[Company] - [Position]/`
+2. **Review the generated resume**:
+   - Ideally, make no changes or only trivial adjustments
+   - The content should be pre-optimized for the job
+3. **Review the generated cover letter**:
+   - Again, ideally minimal to no changes needed
+   - Should be tailored to the company and role
+4. **Download both files**:
+   - Save as DOCX for editing capability
+   - Save as PDF for final submission
+
+#### 3. Apply for the Job
+1. **Submit your application** through the company's normal process
+2. **Upload the generated resume** (PDF recommended)
+3. **Upload the generated cover letter** (PDF recommended)
+4. **Use the interview prep notes** to prepare for potential interviews
+
+#### 4. Track Your Application
+1. **Open the resume tracker** (Excel file in your Google Drive)
+2. **Find your job entry** - it should be pre-populated with:
+   - Company name
+   - Role/position title
+   - Job posting URL
+   - Salary range (if detected)
+3. **Update the "Applied" column** with today's date
+4. **Track follow-ups** and interview progress as they occur
+
+This workflow is designed to take a job application from discovery to submission in under 10 minutes, with most of that time spent on review rather than content creation.
+
 ### Start the Server
 
 ```bash
