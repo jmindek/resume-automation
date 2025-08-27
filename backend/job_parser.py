@@ -439,8 +439,15 @@ class JobParser:
         # General Engineering Manager patterns (broader match)
         elif any(pattern in position_lower for pattern in [
             'engineering manager', 'eng manager', 'software engineering manager',
-            'software eng manager', 'team lead', 'tech lead manager', 'development manager'
-        ]):
+            'software eng manager', 'team lead', 'tech lead manager', 'development manager',
+            'manager, software development', 'software development manager',
+            'manager software', 'technical manager', 'engineering lead'
+        ]) or any(
+            # Handle numbered manager positions like "Manager 1, Software Development"
+            ('manager' in position_lower and pattern in position_lower) for pattern in [
+                'software development', 'software engineering', 'engineering', 'development'
+            ]
+        ):
             return 'engineering_manager'
         
         # Senior Software Engineer patterns (for individual contributor roles)
