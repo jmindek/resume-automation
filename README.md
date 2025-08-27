@@ -74,23 +74,39 @@ The system uses your local Google Drive sync folder (requires Google Drive for M
    - `{company_name3},{company_3_date_range}`: Company name 3 and date range
    - `{company_name4},{company_4_date_range}`: Company name 4 and date range
 
-### 6. Google Drive Folder Structure
+### 6. Google Drive Folder Structure and Templates
 
+#### A. Create Folder Structure
 Create this folder structure in your Google Drive:
 
 ```
 resume-automation-system/
 ├── templates/
-│   ├── resumes/
+│   ├── resumes/              # Your baseline resume content files
 │   │   ├── Engineering Manager.docx
 │   │   ├── Senior Software Engineer.docx
-│   │   └── Data Engineering Manager.docx
-│   ├── Engineering Manager Template.docx
+│   │   ├── Data Engineering Manager.docx
+│   │   └── Senior Engineering Manager.docx
+│   ├── Engineering Manager Template.docx     # Output formatting templates
 │   ├── Cover Letter Template.docx
 │   └── Interview Prep Notes Template.docx
 └── ready-for-review/
     └── (generated resumes will appear here)
 ```
+
+#### B. Copy Templates from Repository
+**Important:** Copy all template files from this repository's `templates/` folder to your Google Drive `resume-automation-system/templates/` folder. These include:
+- All `.docx` template files for output formatting
+- Sample baseline resume files
+
+#### C. Create Your Baseline Resume Files
+In the `templates/resumes/` folder, create your baseline resume files. **The filenames must exactly match the template names in your `config.yaml`:**
+
+- If `config.yaml` lists `engineering_manager: "Engineering Manager"`, create `Engineering Manager.docx`
+- If `config.yaml` lists `senior_software_engineer: "Senior Software Engineer"`, create `Senior Software Engineer.docx`
+- And so on...
+
+These files contain your complete resume content that will be optimized for each specific job application.
 
 ## Usage
 
@@ -121,6 +137,26 @@ uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
+## Important Limitations and Considerations
+
+⚠️ **Version 1 Limitations - Please Read:**
+
+### Template Limitations
+- **Single output format**: There is only one type of output resume template. If you don't like the format, you'll need to create your own Jinja2 template or you may find this application unusable.
+- **Jinja2 knowledge helpful**: Users familiar with Jinja templating will find customization straightforward. Others may find template modification to be an insurmountable barrier.
+
+### Baseline Resume Recommendations
+- **Use baseline files**: While you technically don't need baseline resume files (you could paste content each time), this would dramatically slow you down and counteract one of the main goals of this application.
+- **Recommended**: Create and maintain your baseline resume files as described in the setup.
+
+### Configuration Customization
+- **4-job limit**: The output resume is configured to contain only 4 jobs by default. Modify `config.yaml` to increase or decrease this number.
+- **Customize everything**: Modify `config.yaml` to adjust:
+  - Number of achievements per job
+  - Prompt optimization for your specific situation
+  - Personal information and company details
+  - Template mappings and file names
+
 ## Configuration Options
 
 ### Resume Templates
@@ -133,6 +169,10 @@ Available templates in `config.yaml`:
 - `software_engineer`: Software Engineer
 - `lead_data_engineer`: Lead Data Engineer
 - `data_engineer`: Data Engineer
+
+**Important:** Your baseline resume files in `templates/resumes/` must be named exactly as shown in the right column above. For example:
+- `Engineering Manager.docx` (matches the `engineering_manager` template)
+- `Senior Software Engineer.docx` (matches the `senior_software_engineer` template)
 
 ### Template Format
 
