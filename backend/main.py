@@ -24,8 +24,20 @@ from pathlib import Path
 from docx import Document
 import PyPDF2
 import io
+import logging
 
 load_dotenv()
+
+# Configure logging
+DEBUG_MODE = os.getenv('DEBUG', 'false').lower() == 'true'
+logging.basicConfig(
+    level=logging.DEBUG if DEBUG_MODE else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
+
+# Create logger for this module
+logger = logging.getLogger(__name__)
 
 # File extraction helpers
 def extract_pdf_text(file_content: bytes) -> str:
@@ -140,8 +152,8 @@ def scrape_job_content(url: str) -> Tuple[str, str]:
         cleaned_text = ' '.join(chunk for chunk in chunks if chunk)
         
         # Check if this is a SPA page with no content
-        print(f"DEBUG: cleaned_text length: {len(cleaned_text.strip())}")
-        print(f"DEBUG: is_spa_page: {JobParser._is_spa_page(raw_html)}")
+        logger.debug(f"cleaned_text length: {len(cleaned_text.strip())}")
+        logger.debug(f"is_spa_page: {JobParser._is_spa_page(raw_html)}")
         
         # Check if scraping failed (very short content or SPA page)
         if len(cleaned_text.strip()) < 100:
@@ -474,9 +486,9 @@ def generate_prompts(
     Returns:
         List of formatted prompt strings with placeholders
     """
-    print(f"DEBUG: motivation_notes: {motivation_notes[:100]}...")
-    print(f"DEBUG: job_description length: {len(job_description)}")
-    print(f"DEBUG: template_content length: {len(template_content) if template_content else 'None'}")
+    logger.debug(f"motivation_notes: {motivation_notes[:100]}...")
+    logger.debug(f"job_description length: {len(job_description)}")
+    logger.debug(f"template_content length: {len(template_content) if template_content else 'None'}")
     
     # Format template-based prompts
     try:
@@ -490,15 +502,15 @@ def generate_prompts(
         print(f"❌ Error formatting prompt: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to format prompt_1: {str(e)}")
     
-    print(f"DEBUG: Formatted prompt_1 length: {len(formatted_prompt_1)} characters")
-    print(f"DEBUG: Last 500 chars of prompt_1: ...{formatted_prompt_1[-500:]}")
+    logger.debug(f"Formatted prompt_1 length: {len(formatted_prompt_1)} characters")
+    logger.debug(f"Last 500 chars of prompt_1: ...{formatted_prompt_1[-500:]}")
     
     # Check if resume_reference actually made it into the formatted prompt
     if resume_reference and resume_reference in formatted_prompt_1:
-        print("✅ Resume reference found in formatted prompt")
+        logger.info("✅ Resume reference found in formatted prompt")
     else:
-        print("❌ Resume reference NOT found in formatted prompt")
-        print(f"DEBUG: Resume reference starts with: '{resume_reference[:50]}'" if resume_reference else "DEBUG: resume_reference is empty/None")
+        logger.warning("❌ Resume reference NOT found in formatted prompt")
+        logger.debug(f"Resume reference starts with: '{resume_reference[:50]}'" if resume_reference else "resume_reference is empty/None")
     
     return [
         formatted_prompt_1,
@@ -745,9 +757,9 @@ This is an excellent opportunity to make a significant impact at {company_name}.
     prompts_config = config.get_prompts()
     
     # Format prompts with variables
-    print(f"DEBUG: resume_reference length: {len(resume_reference)} characters")
-    print(f"DEBUG: resume_reference preview: {resume_reference[:100]}...")
-    print(f"DEBUG: resume_reference type: {type(resume_reference)}")
+    logger.debug(f"resume_reference length: {len(resume_reference)} characters")
+    logger.debug(f"resume_reference preview: {resume_reference[:100]}...")
+    logger.debug(f"resume_reference type: {type(resume_reference)}")
     # Generate all prompts with placeholders
     prompts = generate_prompts(
         prompts_config=prompts_config,
@@ -1084,18 +1096,18 @@ async def generate_resume_with_file_upload(
     try:
         # Read the uploaded file
         file_content = await override_resume_file.read()
-        print(f"Received file: {override_resume_file.filename}, size: {len(file_content)} bytes")
+        logger.info(f"Received file: {override_resume_file.filename}, size: {len(file_content)} bytes")
         
         # Extract text based on file type
         if override_resume_file.filename.endswith('.pdf'):
             override_resume_text = extract_pdf_text(file_content)
-            print(f"Extracted {len(override_resume_text)} characters from PDF")
+            logger.debug(f"Extracted {len(override_resume_text)} characters from PDF")
         elif override_resume_file.filename.endswith('.docx'):
             override_resume_text = extract_docx_text(file_content)
-            print(f"Extracted {len(override_resume_text)} characters from DOCX")
+            logger.debug(f"Extracted {len(override_resume_text)} characters from DOCX")
         elif override_resume_file.filename.endswith('.txt'):
             override_resume_text = file_content.decode('utf-8')
-            print(f"Read {len(override_resume_text)} characters from TXT")
+            logger.debug(f"Read {len(override_resume_text)} characters from TXT")
         else:
             raise HTTPException(status_code=400, detail="Unsupported file format. Please use PDF, DOCX, or TXT files.")
         

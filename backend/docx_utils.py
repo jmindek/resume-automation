@@ -6,6 +6,10 @@ from docx.oxml import OxmlElement, ns
 from docx.oxml.ns import qn
 from pathlib import Path
 from typing import Optional, Dict, Any
+import logging
+
+# Create logger for this module
+logger = logging.getLogger(__name__)
 
 
 # Note: To get hyperlinks like in the baseline resume, you need to manually update 
@@ -221,7 +225,7 @@ def map_tag_values_to_template(tag_values: Dict[str, Any], template_path: Path) 
                     template_var = f"{company_key}_{field}"
                     mapped_values[template_var] = value
                 
-                print(f"DEBUG: Added company template variables for {company_key}: {list(company_data.keys())}")
+                logger.debug(f"Added company template variables for {company_key}: {list(company_data.keys())}")
             
             # Social links - only replace if template tags exist, otherwise skip
             template_content = read_docx_content(template_path)
@@ -638,7 +642,7 @@ def extract_template_tags(claude_response: str) -> Dict[str, str]:
         matches = re.findall(double_brace_pattern, claude_response, re.DOTALL)
         
         if matches:
-            print(f"DEBUG: Found {len(matches)} double-brace template tags")
+            logger.debug(f"Found {len(matches)} double-brace template tags")
             for tag_name, tag_content in matches:
                 # Clean up the content (remove brackets if present, strip whitespace)
                 cleaned_content = tag_content.strip()
