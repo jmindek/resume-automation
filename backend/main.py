@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -21,8 +21,34 @@ from backend.docx_utils import read_docx_content, write_docx_content, tag_based_
 from backend.excel_tracker import create_resume_tracker
 import os
 from pathlib import Path
+from docx import Document
+import PyPDF2
+import io
 
 load_dotenv()
+
+# File extraction helpers
+def extract_pdf_text(file_content: bytes) -> str:
+    """Extract text from PDF file content"""
+    try:
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+        text_content = []
+        for page in pdf_reader.pages:
+            text_content.append(page.extract_text())
+        return "\n".join(text_content)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to extract text from PDF: {str(e)}")
+
+def extract_docx_text(file_content: bytes) -> str:
+    """Extract text from DOCX file content"""
+    try:
+        doc = Document(io.BytesIO(file_content))
+        text_content = []
+        for paragraph in doc.paragraphs:
+            text_content.append(paragraph.text)
+        return "\n".join(text_content)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to extract text from DOCX: {str(e)}")
 
 app = FastAPI(title="Resume Automation API - Level 2")
 
@@ -54,6 +80,8 @@ class ResumeRequest(BaseModel):
     additional_details: str = ""  # Additional context for the application
     motivation_notes: str = "I am passionate about building scalable systems and leading engineering teams to deliver high-quality software solutions."
     resume_template: str
+    resume_template_docx: str = ""  # Template for .docx formatting
+    override_resume: str = ""  # Override resume content instead of baseline
     company_name: str = ""  # For Level 2 Google Drive integration
     position_title: str = ""  # For Level 2 Google Drive integration
     use_drive_integration: bool = False  # Enable/disable Drive features
@@ -588,66 +616,95 @@ This is an excellent opportunity to make a significant impact at {company_name}.
     resume_reference = ""
     cover_letter_base = ""
     
-    file_config = config.get('file_organization', {})
-    drive_root = file_config.get('drive_for_mac_root', '')
-    
-    if not drive_root:
-        raise HTTPException(status_code=500, detail="Google Drive for Mac root path not configured")
-    
-    # Cross-reference resume_template to get baseline_resume_name
+    # Always set baseline_resume_name first (needed for generate_prompts call)
     baseline_resume_mapping = config.get_baseline_resume_mapping()
     baseline_resume_name = baseline_resume_mapping.get(request.resume_template)
     
     if not baseline_resume_name:
         raise HTTPException(status_code=400, detail=f"Unknown resume template: {request.resume_template}")
     
-    # Load both template and baseline files using new 2-document system
-    templates_folder = Path(drive_root) / "resume-automation-system" / "templates"
-    template_file, baseline_file = find_template_and_baseline_files(templates_folder, baseline_resume_name)
+    # Check if override resume content is provided
+    if request.override_resume and request.override_resume.strip():
+        print(f"Using override resume content ({len(request.override_resume)} characters)")
+        resume_reference = request.override_resume.strip()
+        template_file = None  # Will determine template file separately for override case
+    else:
+        # Use normal baseline resume loading
+        file_config = config.get('file_organization', {})
+        drive_root = file_config.get('drive_for_mac_root', '')
+        
+        if not drive_root:
+            raise HTTPException(status_code=500, detail="Google Drive for Mac root path not configured")
+        
+        # Load both template and baseline files using new 2-document system
+        templates_folder = Path(drive_root) / "resume-automation-system" / "templates"
+        template_file, baseline_file = find_template_and_baseline_files(templates_folder, baseline_resume_name)
     
-    resume_reference = ""
     template_content = ""
     
-    if template_file and baseline_file:
-        # Template system: we have both template and baseline
-        try:
-            # Load baseline content (now prefers .docx over .gdoc)
-            resume_reference = read_content_file(baseline_file)
-            print(f"Successfully loaded baseline content '{baseline_resume_name}' from {baseline_file.suffix} file: {len(resume_reference)} characters")
+    # Handle template file loading (only if not using override resume)
+    if not (request.override_resume and request.override_resume.strip()):
+        # Normal baseline resume loading
+        if template_file and baseline_file:
+            # Template system: we have both template and baseline
+            try:
+                # Load baseline content (now prefers .docx over .gdoc)
+                resume_reference = read_content_file(baseline_file)
+                print(f"Successfully loaded baseline content '{baseline_resume_name}' from {baseline_file.suffix} file: {len(resume_reference)} characters")
+                
+                # Load template content
+                template_content = read_content_file(template_file)
+                print(f"Successfully loaded template '{baseline_resume_name} Template' from {template_file.suffix} file: {len(template_content)} characters")
+                
+                print(f"Using template system for '{baseline_resume_name}'")
+                print(f"Baseline preview: {resume_reference[:200]}...")
+                print(f"Template preview: {template_content[:200]}...")
+                
+            except Exception as e:
+                print(f"❌ ERROR: Failed to read template system files: {str(e)}")
+                print(f"Trying baseline only fallback")
+                # Still try to load baseline for fallback
+                if baseline_file:
+                    try:
+                        resume_reference = read_content_file(baseline_file)
+                        print(f"Successfully loaded baseline in fallback mode: {len(resume_reference)} characters")
+                    except Exception as fallback_error:
+                        print(f"❌ Even fallback failed: {str(fallback_error)}")
+                        raise HTTPException(status_code=500, detail=f"Failed to read baseline resume: {str(fallback_error)}")
+        elif baseline_file:
+            # Fallback to old system: only baseline file exists
+            try:
+                resume_reference = read_content_file(baseline_file)
+                print(f"Successfully loaded baseline resume '{baseline_resume_name}' from {baseline_file.suffix} file (fallback mode): {len(resume_reference)} characters")
+                print(f"Baseline resume preview: {resume_reference[:200]}...")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to read baseline resume '{baseline_resume_name}' from {baseline_file}: {str(e)}")
+        elif not template_file and not baseline_file:
+            # Neither found - error
+            available_files = list(templates_folder.glob("*")) if templates_folder.exists() else []
+            raise HTTPException(status_code=500, detail=f"No template or baseline files found for '{baseline_resume_name}' in {templates_folder}. Available files: {[f.name for f in available_files]}")
+    else:
+        # For override resume, still try to load template file for .docx generation
+        if hasattr(request, 'resume_template_docx') and request.resume_template_docx:
+            # Use the docx template specified
+            file_config = config.get('file_organization', {})
+            drive_root = file_config.get('drive_for_mac_root', '')
+            templates_folder = Path(drive_root) / "resume-automation-system" / "templates"
             
-            # Load template content
-            template_content = read_content_file(template_file)
-            print(f"Successfully loaded template '{baseline_resume_name} Template' from {template_file.suffix} file: {len(template_content)} characters")
+            # Map resume_template_docx to template file
+            baseline_resume_mapping = config.get_baseline_resume_mapping()
+            docx_template_name = baseline_resume_mapping.get(request.resume_template_docx)
             
-            print(f"Using template system for '{baseline_resume_name}'")
-            print(f"Baseline preview: {resume_reference[:200]}...")
-            print(f"Template preview: {template_content[:200]}...")
-            
-        except Exception as e:
-            print(f"❌ ERROR: Failed to read template system files: {str(e)}")
-            print(f"Trying baseline only fallback")
-            # Still try to load baseline for fallback
-            if baseline_file:
-                try:
-                    resume_reference = read_content_file(baseline_file)
-                    print(f"Successfully loaded baseline in fallback mode: {len(resume_reference)} characters")
-                except Exception as fallback_error:
-                    print(f"❌ Even fallback failed: {str(fallback_error)}")
-                    raise HTTPException(status_code=500, detail=f"Failed to read baseline resume: {str(fallback_error)}")
-    
-    elif baseline_file:
-        # Fallback to old system: only baseline file exists
-        try:
-            resume_reference = read_content_file(baseline_file)
-            print(f"Successfully loaded baseline resume '{baseline_resume_name}' from {baseline_file.suffix} file (fallback mode): {len(resume_reference)} characters")
-            print(f"Baseline resume preview: {resume_reference[:200]}...")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to read baseline resume '{baseline_resume_name}' from {baseline_file}: {str(e)}")
-    
-    elif not template_file and not baseline_file:
-        # Neither found - error
-        available_files = list(templates_folder.glob("*")) if templates_folder.exists() else []
-        raise HTTPException(status_code=500, detail=f"No template or baseline files found for '{baseline_resume_name}' in {templates_folder}. Available files: {[f.name for f in available_files]}")
+            if docx_template_name:
+                potential_template_files = [
+                    templates_folder / f"{docx_template_name} Template.docx",
+                    templates_folder / f"{docx_template_name}Template.docx"
+                ]
+                for potential_file in potential_template_files:
+                    if potential_file.exists():
+                        template_file = potential_file
+                        print(f"Using template file for override resume: {template_file}")
+                        break
     
     # Ensure we have content
     if not resume_reference:
@@ -1005,6 +1062,73 @@ async def list_drive_templates():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list templates: {str(e)}")
+
+@app.post("/api/generate-resume-upload")
+async def generate_resume_with_file_upload(
+    override_resume_file: UploadFile = File(...),
+    job_url: str = Form(""),
+    job_description: str = Form(""),
+    additional_details: str = Form(""),
+    motivation_notes: str = Form("I am passionate about building scalable systems and leading engineering teams to deliver high-quality software solutions."),
+    resume_template: str = Form("engineering_manager"),
+    resume_template_docx: str = Form(""),
+    use_drive_integration: bool = Form(False),
+    company_name: str = Form(""),
+    position_title: str = Form(""),
+    claude_model: str = Form("claude-sonnet-4-20250514"),
+    enabled_prompts: str = Form("{}"),
+    enable_resume_tracking: bool = Form(False),
+    prevent_duplicate_resumes: bool = Form(False)
+):
+    """Generate resume with file upload for override resume"""
+    try:
+        # Read the uploaded file
+        file_content = await override_resume_file.read()
+        print(f"Received file: {override_resume_file.filename}, size: {len(file_content)} bytes")
+        
+        # Extract text based on file type
+        if override_resume_file.filename.endswith('.pdf'):
+            override_resume_text = extract_pdf_text(file_content)
+            print(f"Extracted {len(override_resume_text)} characters from PDF")
+        elif override_resume_file.filename.endswith('.docx'):
+            override_resume_text = extract_docx_text(file_content)
+            print(f"Extracted {len(override_resume_text)} characters from DOCX")
+        elif override_resume_file.filename.endswith('.txt'):
+            override_resume_text = file_content.decode('utf-8')
+            print(f"Read {len(override_resume_text)} characters from TXT")
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file format. Please use PDF, DOCX, or TXT files.")
+        
+        # Parse enabled_prompts JSON
+        try:
+            enabled_prompts_dict = json.loads(enabled_prompts)
+        except json.JSONDecodeError:
+            enabled_prompts_dict = {"prompt_1": True, "prompt_2": True, "prompt_3": True}
+        
+        # Create ResumeRequest object
+        request = ResumeRequest(
+            job_url=job_url,
+            job_description=job_description,
+            additional_details=additional_details,
+            motivation_notes=motivation_notes,
+            resume_template=resume_template,
+            resume_template_docx=resume_template_docx or resume_template,
+            override_resume=override_resume_text,  # Use extracted text
+            use_drive_integration=use_drive_integration,
+            company_name=company_name,
+            position_title=position_title,
+            claude_model=claude_model,
+            enabled_prompts=enabled_prompts_dict,
+            enable_resume_tracking=enable_resume_tracking,
+            prevent_duplicate_resumes=prevent_duplicate_resumes
+        )
+        
+        # Call the existing generate_resume function
+        return await generate_resume(request)
+        
+    except Exception as e:
+        print(f"Error in file upload endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/config/prompts")
 async def get_prompts():

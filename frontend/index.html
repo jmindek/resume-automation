@@ -251,6 +251,18 @@
             border-left: 4px solid #1e7e34;
         }
         
+        /* File Upload Area */
+        .file-upload-area.dragover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+            transform: scale(1.02);
+        }
+        
+        .file-upload-area:hover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        
         /* Removed all status tracker CSS */
     </style>
 </head>
@@ -288,13 +300,13 @@
             <div id="driveOptions" style="display: block; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 20px; background-color: #f9f9f9;">
                 <div class="form-group">
                     <label for="companyName">Company Name:</label>
-                    <input type="text" id="companyName" placeholder="e.g., Google, Microsoft, Meta" tabindex="3">
+                    <input type="text" id="companyName" placeholder="e.g., Google, Microsoft, Meta" tabindex="5">
                     <small style="color: #666; font-size: 12px;">Auto-detected from job URL. Edit as needed.</small>
                 </div>
                 
                 <div class="form-group">
                     <label for="positionTitle">Position Title:</label>
-                    <input type="text" id="positionTitle" placeholder="e.g., Senior Software Engineer, Engineering Manager" tabindex="4">
+                    <input type="text" id="positionTitle" placeholder="e.g., Senior Software Engineer, Engineering Manager" tabindex="6">
                     <small style="color: #666; font-size: 12px;">Auto-detected from job description. Edit as needed.</small>
                 </div>
                 
@@ -305,23 +317,57 @@
                 </small>
             </div>
             
-            <div class="form-group">
-                <label for="resumeTemplate">Baseline Resume (auto-selected):</label>
-                <select id="resumeTemplate" required>
-                    <option value="">Will auto-select based on position...</option>
-                    <option value="senior_engineering_manager">Senior Engineering Manager</option>
-                    <option value="engineering_manager">Engineering Manager</option>
-                    <option value="director">Director of Engineering</option>
-                    <option value="data_engineering_manager">Data Engineering Manager</option>
-                    <option value="senior_software_engineer">Senior Software Engineer</option>
-                    <option value="software_engineer">Software Engineer</option>
-                    <option value="lead_data_engineer">Lead Data Engineer</option>
-                    <option value="data_engineer">Data Engineer</option>
-                </select>
-                <small style="color: #666; font-size: 12px;">Your complete baseline resume that will be optimized for this specific job. Auto-selected based on job title.</small>
+            <div class="templates-section">
+                <h3 style="color: #333; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 5px;">📄 Templates</h3>
+                
+                <div class="form-group">
+                    <label for="resumeTemplateDocx">Resume Template (auto-selected):</label>
+                    <select id="resumeTemplateDocx" required tabindex="7">
+                        <option value="">Will auto-select based on position...</option>
+                        <option value="senior_engineering_manager">Senior Engineering Manager Template</option>
+                        <option value="engineering_manager">Engineering Manager Template</option>
+                        <option value="director">Director of Engineering Template</option>
+                        <option value="data_engineering_manager">Data Engineering Manager Template</option>
+                        <option value="senior_software_engineer">Senior Software Engineer Template</option>
+                        <option value="software_engineer">Software Engineer Template</option>
+                        <option value="lead_data_engineer">Lead Data Engineer Template</option>
+                        <option value="data_engineer">Data Engineer Template</option>
+                    </select>
+                    <small style="color: #666; font-size: 12px;">The .docx template file with formatting and layout. Auto-selected based on job title.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="resumeTemplate">Baseline Resumes (auto-selected):</label>
+                    <select id="resumeTemplate" required tabindex="8">
+                        <option value="">Will auto-select based on position...</option>
+                        <option value="senior_engineering_manager">Senior Engineering Manager</option>
+                        <option value="engineering_manager">Engineering Manager</option>
+                        <option value="director">Director of Engineering</option>
+                        <option value="data_engineering_manager">Data Engineering Manager</option>
+                        <option value="senior_software_engineer">Senior Software Engineer</option>
+                        <option value="software_engineer">Software Engineer</option>
+                        <option value="lead_data_engineer">Lead Data Engineer</option>
+                        <option value="data_engineer">Data Engineer</option>
+                    </select>
+                    <small style="color: #666; font-size: 12px;">Your complete baseline resume content that will be optimized for this specific job. Auto-selected based on job title.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="overrideResume">Override Resume (use this resume's content rather than a baseline):</label>
+                    <div class="file-upload-area" id="overrideResumeDropArea" style="border: 2px dashed #ccc; border-radius: 5px; padding: 20px; text-align: center; margin-bottom: 10px; transition: all 0.3s ease; cursor: pointer;">
+                        <input type="file" id="overrideResumeFile" accept=".docx,.txt,.pdf" style="display: none;">
+                        <div class="upload-text" id="overrideResumeUploadText">
+                            📄 Drag and drop a resume file here, or <button type="button" id="overrideResumeBrowse" style="background: none; border: none; color: #007bff; text-decoration: underline; cursor: pointer; font-size: inherit;">browse to select</button>
+                            <br><small style="color: #666; margin-top: 5px; display: block;">Supported formats: .docx, .txt, .pdf</small>
+                        </div>
+                        <div id="overrideResumeFileName" style="color: #28a745; font-weight: bold; margin-top: 10px; display: none;"></div>
+                    </div>
+                    <textarea id="overrideResume" placeholder="Paste your complete resume text here to use instead of the baseline resume..." style="height: 120px;" tabindex="9"></textarea>
+                    <small style="color: #666; font-size: 12px;">Optional: Paste your complete resume content here to use instead of the baseline resume. For .txt files, you can upload them above. For PDF/DOCX files, copy-paste the content here. Leave empty to use the baseline resume above.</small>
+                </div>
             </div>
             
-            <button type="submit" id="generateBtn" tabindex="5">Generate Resume Package</button>
+            <button type="submit" id="generateBtn" tabindex="10">Generate Resume Package</button>
         </form>
         
         <!-- Removed status tracker -->
@@ -439,6 +485,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.2"></script>
+    <script src="app.js?v=1.6"></script>
 </body>
 </html>
